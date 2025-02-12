@@ -53,12 +53,15 @@ class OrderedData(Data):
             else:
                 return self.num_nodes  # 默认节点数（MIG）
         # 如果是批次相关的字段
-        if key == 'aig_batch':
+
+        if 'batch' in key:
             return 1
-        elif key == 'xag_batch':
-            return 2
-        elif key == 'xmg_batch':
-            return 3
+        # if key == 'aig_batch':
+        #     return 1
+        # elif key == 'xag_batch':
+        #     return 1
+        # elif key == 'xmg_batch':
+        #     return 1
         return 0  # 默认返回 0
     
     def __cat_dim__(self, key, value, *args, **kwargs):
