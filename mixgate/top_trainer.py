@@ -146,8 +146,11 @@ class TopTrainer():
         mcm_loss = self.reg_loss(mcm_pm_tokens[mask_indices], pm_tokens[mask_indices])
         
         # Task 3: Functional Similarity        
-        node_a =  mcm_pm_tokens[batch['tt_pair_index'][0]]
-        node_b =  mcm_pm_tokens[batch['tt_pair_index'][1]]
+        # node_a =  mcm_pm_tokens[batch['tt_pair_index'][0]]
+        # node_b =  mcm_pm_tokens[batch['tt_pair_index'][1]]
+        # 提取功能部分（hf）
+        node_a = mcm_pm_tokens[batch['tt_pair_index'][0], self.args.dim_hidden:]  # 后半部分
+        node_b = mcm_pm_tokens[batch['tt_pair_index'][1], self.args.dim_hidden:]
         emb_dis = 1 - torch.cosine_similarity(node_a, node_b, eps=1e-8)
         emb_dis_z = zero_normalization(emb_dis)
         tt_dis_z = zero_normalization(batch['tt_dis'])
@@ -205,7 +208,7 @@ class TopTrainer():
             prob_loss_xag.reset()
             prob_loss_xmg.reset()
             prob_loss_mig.reset()
-            
+
             for phase in ['train', 'val']:
                 if phase == 'train':
                     dataset = train_dataset

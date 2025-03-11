@@ -58,10 +58,10 @@ class TopModel(nn.Module):
         self.deepgate_xag = DeepGate_Xag(dim_hidden=args.dim_hidden)
         self.deepgate_xag.load(dg_ckpt_xag)
 
-        # 关键：冻结参数
-        for model in [self.deepgate_aig, self.deepgate_mig, self.deepgate_xmg, self.deepgate_xag]:
-            for param in model.parameters():
-                param.requires_grad = False  
+        # # 关键：冻结参数
+        # for model in [self.deepgate_aig, self.deepgate_mig, self.deepgate_xmg, self.deepgate_xag]:
+        #     for param in model.parameters():
+        #         param.requires_grad = False  
                 
         # Transformer
         tf_layer = nn.TransformerEncoderLayer(d_model=args.dim_hidden * 2, nhead=args.tf_head, batch_first=True)
