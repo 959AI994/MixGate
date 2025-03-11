@@ -201,6 +201,11 @@ class TopTrainer():
             prob_loss_stats.reset()
             func_loss_stats.reset()
             mcm_loss_stats.reset()
+            prob_loss_aig.reset()
+            prob_loss_xag.reset()
+            prob_loss_xmg.reset()
+            prob_loss_mig.reset()
+            
             for phase in ['train', 'val']:
                 if phase == 'train':
                     dataset = train_dataset
@@ -218,13 +223,6 @@ class TopTrainer():
                     time_stamp = time.time()
                     # Get loss
                     loss_status = self.run_batch(batch)
-
-                    # 打印并记录每个子模型的概率
-                    # if self.local_rank == 0:
-                    #     self.logger.write(f"Epoch {epoch}, Iter {iter_id}: AIG Prob: {loss_status['aig_prob'].mean().item():.4f} | "
-                    #                     f"MIG Prob: {loss_status['mig_prob'].mean().item():.4f} | "
-                    #                     f"XMG Prob: {loss_status['xmg_prob'].mean().item():.4f} | "
-                    #                     f"XAG Prob: {loss_status['xag_prob'].mean().item():.4f}\n")
                         
                     loss = loss_status['prob_loss'] * self.loss_weight[0] + \
                         loss_status['mcm_loss'] * self.loss_weight[1] +\
