@@ -3,13 +3,13 @@ import os
 
 # 文件路径列表
 data_paths = [
-    ('/home/wjx/npz/final_data/newest_npz/mig_npz/graphs.npz', '/home/wjx/npz/final_data/newest_npz/mig_npz/labels.npz', '/home/wjx/npz/final_data/newest_npz/mig_npz/graphs1.npz'),
-    ('/home/wjx/npz/final_data/newest_npz/xmg_npz/graphs.npz', '/home/wjx/npz/final_data/newest_npz/xmg_npz/labels.npz', '/home/wjx/npz/final_data/newest_npz/xmg_npz/graphs1.npz'),
-    ('/home/wjx/npz/final_data/newest_npz/xag_npz/graphs.npz', '/home/wjx/npz/final_data/newest_npz/xag_npz/labels.npz', '/home/wjx/npz/final_data/newest_npz/xag_npz/graphs1.npz'),
+    ('/home/jwt/DeepGate2_mig/mig_data/train/graphs.npz', '/home/jwt/DeepGate2_mig/mig_data/train/labels.npz', '/home/jwt/DeepGate2_mig/mig_data/train/graphs1.npz'),
+    ('/home/jwt/DeepGate2_mig/xmg_data/train/graphs.npz', '/home/jwt/DeepGate2_mig/xmg_data/train/labels.npz', '/home/jwt/DeepGate2_mig/xmg_data/train/graphs1.npz'),
+    ('/home/jwt/DeepGate2_mig/xag_data/train/graphs.npz', '/home/jwt/DeepGate2_mig/xag_data/train/labels.npz', '/home/jwt/DeepGate2_mig/xag_data/train/graphs1.npz'),
 ]
 
-output_paths = ['/home/wjx/npz/final_data/newest_npz/mig_npz/graphs1.npz', '/home/wjx/npz/final_data/newest_npz/xmg_npz/graphs1.npz', '/home/wjx/npz/final_data/newest_npz/xag_npz/graphs1.npz', '/home/wjx/npz/final_data/newest_npz/aig_npz/graphs.npz']
-final_output_path = '/home/wjx/npz/final_data/newest_npz/merged_all.npz'
+output_paths = ['/home/jwt/DeepGate2_mig/mig_data/train/graphs1.npz', '/home/jwt/DeepGate2_mig/xmg_data/train/graphs1.npz', '/home/jwt/DeepGate2_mig/xag_data/train/graphs1.npz', '/home/jwt/1/aig_npz/graphs.npz']
+final_output_path = '/home/jwt/1/merged_all1.npz'
 # aiggraph_path = ['/home/jwt/1/aig_npz/aig_graphs.npz']
 
 # 合并函数
@@ -28,6 +28,9 @@ def merge_graphs_and_labels(graphs_path, labels_path, output_path):
         # 如果 labels.npz 中有对应的电路名称
         if circuit_name in labels_data:
             graph['prob'] = labels_data[circuit_name]['prob']  # 添加 prob 数据
+            graph['tt_pair_index'] = labels_data[circuit_name]['tt_pair_index']
+            graph['tt_dis'] = labels_data[circuit_name]['tt_dis']
+            graph['min_tt_dis'] = labels_data[circuit_name]['min_tt_dis']
         else:
             print(f"Warning: No prob data for circuit {circuit_name}")
         merged_data[circuit_name] = graph
@@ -86,14 +89,23 @@ def merge_all(output_paths, final_output_path):
                 merged[circuit_name]['mig_x'] = graph['x']
                 merged[circuit_name]['mig_edge_index'] = graph['edge_index']
                 merged[circuit_name]['mig_prob'] = graph['prob']
+                merged[circuit_name]['mig_tt_pair_index'] = graph['tt_pair_index']
+                merged[circuit_name]['mig_tt_dis'] = graph['tt_dis']
+                merged[circuit_name]['mig_min_tt_dis'] = graph['min_tt_dis']
             elif i == 1:  # xmg
                 merged[circuit_name]['xmg_x'] = graph['x']
                 merged[circuit_name]['xmg_edge_index'] = graph['edge_index']
                 merged[circuit_name]['xmg_prob'] = graph['prob']
+                merged[circuit_name]['xmg_tt_pair_index'] = graph['tt_pair_index']
+                merged[circuit_name]['xmg_tt_dis'] = graph['tt_dis']
+                merged[circuit_name]['xmg_min_tt_dis'] = graph['min_tt_dis']
             elif i == 2:  # xag
                 merged[circuit_name]['xag_x'] = graph['x']
                 merged[circuit_name]['xag_edge_index'] = graph['edge_index']
                 merged[circuit_name]['xag_prob'] = graph['prob']
+                merged[circuit_name]['xag_tt_pair_index'] = graph['tt_pair_index']
+                merged[circuit_name]['xag_tt_dis'] = graph['tt_dis']
+                merged[circuit_name]['xag_min_tt_dis'] = graph['min_tt_dis']
             elif i == 3:  # aig
                 merged[circuit_name]['aig_x'] = graph['x']
                 merged[circuit_name]['aig_edge_index'] = graph['edge_index']
@@ -103,9 +115,11 @@ def merge_all(output_paths, final_output_path):
                 merged[circuit_name]['aig_forward_index'] = graph['forward_index']
                 merged[circuit_name]['aig_backward_index'] = graph['backward_index']
                 merged[circuit_name]['aig_gate'] = graph['gate']
+                merged[circuit_name]['aig_tt_sim'] = graph['tt_sim']
+                merged[circuit_name]['aig_tt_pair_index'] = graph['tt_pair_index']
 
     # 保存合并后的数据
-    np.savez_compressed(final_output_path, circuits=merged)
+    np.savez_compressed(final_output_path, circuits=merged, allowZip64=True)
     print(f"Final Merged data saved to {final_output_path}")
     merged_data = np.load(final_output_path, allow_pickle=True)['circuits'].item() 
     for circuit_name, graph in merged_data.items():
@@ -129,4 +143,5 @@ for graphs_path, labels_path, output_path in data_paths:
     merge_graphs_and_labels(graphs_path, labels_path, output_path)
 
 merge_all(output_paths, final_output_path)
+
 

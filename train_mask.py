@@ -29,7 +29,7 @@ if __name__ == '__main__':
     # here,we need to build some npz formate including mig,xmg,xag,aig fusion graph
 
     # circuit_path = 'datasets/pair_graphs.npz'
-    circuit_path ='./data/merged_all.npz'
+    circuit_path ='./data/merged_all1500.npz'
 
     num_epochs = args.num_epochs
     
@@ -48,10 +48,10 @@ if __name__ == '__main__':
     model = mixgate.top_model.TopModel(
         args, 
         # dc_ckpt='./ckpt/dc.pth', 
-        dg_ckpt_aig='./ckpt/model_aig.pth',
-        dg_ckpt_xag='./ckpt/model_xag.pth',
-        dg_ckpt_xmg='./ckpt/model_xmg.pth',
-        dg_ckpt_mig='./ckpt/model_mig.pth'
+        dg_ckpt_aig='./ckpt/model_func_aig.pth',
+        dg_ckpt_xag='./ckpt/model_func_xag.pth',
+        dg_ckpt_xmg='./ckpt/model_func_xmg.pth',
+        dg_ckpt_mig='./ckpt/model_func_mig.pth'
     )
     
     # model.to(device)  # 将模型移到正确的设备
@@ -60,8 +60,13 @@ if __name__ == '__main__':
     # model = nn.parallel.DistributedDataParallel(model, device_ids=[local_rank])
 
     trainer = mixgate.top_trainer.TopTrainer(args, model, distributed=True)
-    trainer.set_training_args(lr=1e-4, lr_step=50)
+    trainer.set_training_args(lr=1e-4, lr_step=50, loss_weight = [1.0, 1.0, 3.0])
     print('[INFO] Stage 1 Training ...')
     trainer.train(num_epochs, train_dataset, val_dataset)
+
+    print('[INFO] Stage 2 Training ...')
+    trainer.set_training_args(loss_weight = [3.0, 1.0, 2.0], lr=1e-4, lr_step=50)
+    trainer.train(num_epochs, train_dataset, val_dataset)
+
     
     

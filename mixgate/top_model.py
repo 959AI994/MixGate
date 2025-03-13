@@ -19,6 +19,7 @@ from .dg_model_mig import Model as DeepGate_Mig
 from .dg_model_xmg import Model as DeepGate_Xmg
 from .dg_model_xag import Model as DeepGate_Xag
 from .dg_model import Model as DeepGate_Aig
+from .hier_tf import HierarchicalTransformer
 import numpy as np
 
 from linformer import Linformer
@@ -59,7 +60,7 @@ class TopModel(nn.Module):
         self.deepgate_xag = DeepGate_Xag(dim_hidden=args.dim_hidden)
         self.deepgate_xag.load(dg_ckpt_xag)
 
-        # 关键：冻结参数
+        # # 关键：冻结参数
         # for model in [self.deepgate_aig, self.deepgate_mig, self.deepgate_xmg, self.deepgate_xag]:
         #     for param in model.parameters():
         #         param.requires_grad = False  
@@ -71,6 +72,8 @@ class TopModel(nn.Module):
                 heads = args.tf_head, depth = args.tf_layer, seq_len=8192, 
                 one_kv_head=True, share_kv=True, 
             )
+        elif self.args.hier_tf:
+            self.mask_tf = HierarchicalTransformer(args)
         else:
             one_tf_layer = nn.TransformerEncoderLayer(d_model=args.dim_hidden * 2, nhead=args.tf_head, batch_first=True)
             self.mask_tf = nn.TransformerEncoder(one_tf_layer, num_layers=args.tf_layer)
@@ -153,6 +156,7 @@ class TopModel(nn.Module):
         return masked_tokens, mask_indices
 
     def forward(self, G):
+        G.mig_batch = G.batch
         self.device = next(self.parameters()).device
         # Get PM and AIG tokens
         # pm_hs, pm_hf = self.deepcell(G)
@@ -169,7 +173,6 @@ class TopModel(nn.Module):
         aig_hs = aig_hs.detach()
         aig_hf = aig_hf.detach()
         aig_tokens = torch.cat([aig_hs, aig_hf], dim=1)
-
 
         mig_hs, mig_hf = self.deepgate_mig(G)
         mig_hs = mig_hs.detach()
@@ -217,59 +220,66 @@ class TopModel(nn.Module):
         #     mcm_pm_tokens = torch.cat([mcm_pm_tokens, batch_pred_pm_tokens], dim=0)
 
         # Reconstruction: Mask Circuit Modeling 
-        for batch_id in range(G.batch.max().item() + 1): 
-            # batch_pm_tokens_masked = pm_tokens_masked[G.batch == batch_id]
-            batch_aig_tokens = aig_tokens[G.aig_batch == batch_id]
-            batch_mig_tokens = mig_tokens[G.batch == batch_id]
-            batch_xmg_tokens = xmg_tokens[G.xmg_batch == batch_id]
-            batch_xag_tokens = xag_tokens[G.xag_batch == batch_id]
+        # Hierarchical Transformer / Stone 03.13
+        if self.args.hier_tf:
+            tokens = [aig_tokens, xag_tokens, xmg_tokens, mig_tokens]
+            mcm_predicted_tokens = self.mask_tf(G, tokens, masked_tokens, masked_modal=selected_modality)
+            transformer_output = mcm_predicted_tokens
             
-            # 根据被掩码的模态，排除该模态的原 token，拼接其余模态
-            if selected_modality == 'aig':
-                other_tokens = torch.cat([batch_mig_tokens, batch_xmg_tokens, batch_xag_tokens], dim=0)
-                batch_masked_tokens = masked_tokens[G.aig_batch == batch_id]
-            elif selected_modality == 'mig':
-                other_tokens = torch.cat([batch_aig_tokens, batch_xmg_tokens, batch_xag_tokens], dim=0)
-                batch_masked_tokens = masked_tokens[G.batch == batch_id]
-            elif selected_modality == 'xmg':
-                other_tokens = torch.cat([batch_aig_tokens, batch_mig_tokens, batch_xag_tokens], dim=0)
-                batch_masked_tokens = masked_tokens[G.xmg_batch == batch_id]
-            elif selected_modality == 'xag':
-                other_tokens = torch.cat([batch_aig_tokens, batch_mig_tokens, batch_xmg_tokens], dim=0)
-                batch_masked_tokens = masked_tokens[G.xag_batch == batch_id]
-
-            # 将掩码后的 token 与其他模态的 token 拼接
-            batch_all_tokens = torch.cat([batch_masked_tokens, other_tokens], dim=0)
-            
-            # Transformer forward
-            if self.args.linear_tf:
-                batch_predicted_tokens = self.mask_tf(batch_all_tokens.unsqueeze(0))
-                batch_predicted_tokens = batch_predicted_tokens.squeeze(0)
-            else:
-                batch_predicted_tokens = self.mask_tf(batch_all_tokens)
-            batch_pred_masked_tokens = batch_predicted_tokens[:batch_masked_tokens.shape[0], :]
-             # 收集预测的被掩码的 token
-            mcm_predicted_tokens = torch.cat([mcm_predicted_tokens, batch_pred_masked_tokens], dim=0)
-        
-        # Predict probability 
-        # print("[debug] masked_hf:", masked_hf)
-        
-        # masked_prob = encoder.pred_prob(masked_hf) # todo：mcm_predicted_tokens
-         # 通过 Transformer 处理所有的 tokens（包括掩码后的 tokens 和其他模态的 tokens）
-        # other_tokens = torch.cat([tokens for modality, tokens in tokens_dict.items() if modality != selected_modality], dim=0)
-        # 获取其他模态的 tokens
-        other_tokens = torch.cat([tokens[0] for modality, tokens in tokens_dict.items() if modality != selected_modality], dim=0)
-        input_tokens = masked_tokens
-        # input_tokens = torch.cat([masked_tokens, other_tokens], dim=0)
-        # Debug: Print transformer_hf shape to check
-        
-        
-        # Transformer 层处理
-        if self.args.linear_tf:
-            transformer_output = self.mask_tf(input_tokens.unsqueeze(0))
-            transformer_output = transformer_output.squeeze(0)
         else:
-            transformer_output = self.mask_tf(input_tokens)
+            for batch_id in range(G.batch.max().item() + 1): 
+                # batch_pm_tokens_masked = pm_tokens_masked[G.batch == batch_id]
+                batch_aig_tokens = aig_tokens[G.aig_batch == batch_id]
+                batch_mig_tokens = mig_tokens[G.batch == batch_id]
+                batch_xmg_tokens = xmg_tokens[G.xmg_batch == batch_id]
+                batch_xag_tokens = xag_tokens[G.xag_batch == batch_id]
+                
+                # 根据被掩码的模态，排除该模态的原 token，拼接其余模态
+                if selected_modality == 'aig':
+                    other_tokens = torch.cat([batch_mig_tokens, batch_xmg_tokens, batch_xag_tokens], dim=0)
+                    batch_masked_tokens = masked_tokens[G.aig_batch == batch_id]
+                elif selected_modality == 'mig':
+                    other_tokens = torch.cat([batch_aig_tokens, batch_xmg_tokens, batch_xag_tokens], dim=0)
+                    batch_masked_tokens = masked_tokens[G.batch == batch_id]
+                elif selected_modality == 'xmg':
+                    other_tokens = torch.cat([batch_aig_tokens, batch_mig_tokens, batch_xag_tokens], dim=0)
+                    batch_masked_tokens = masked_tokens[G.xmg_batch == batch_id]
+                elif selected_modality == 'xag':
+                    other_tokens = torch.cat([batch_aig_tokens, batch_mig_tokens, batch_xmg_tokens], dim=0)
+                    batch_masked_tokens = masked_tokens[G.xag_batch == batch_id]
+
+                # 将掩码后的 token 与其他模态的 token 拼接
+                batch_all_tokens = torch.cat([batch_masked_tokens, other_tokens], dim=0)
+                
+                # Transformer forward
+                if self.args.linear_tf:
+                    batch_predicted_tokens = self.mask_tf(batch_all_tokens.unsqueeze(0))
+                    batch_predicted_tokens = batch_predicted_tokens.squeeze(0)
+                else:
+                    batch_predicted_tokens = self.mask_tf(batch_all_tokens)
+                batch_pred_masked_tokens = batch_predicted_tokens[:batch_masked_tokens.shape[0], :]
+                # 收集预测的被掩码的 token
+                mcm_predicted_tokens = torch.cat([mcm_predicted_tokens, batch_pred_masked_tokens], dim=0)
+        
+            # Predict probability 
+            # print("[debug] masked_hf:", masked_hf)
+            
+            # masked_prob = encoder.pred_prob(masked_hf) # todo：mcm_predicted_tokens
+            # 通过 Transformer 处理所有的 tokens（包括掩码后的 tokens 和其他模态的 tokens）
+            # other_tokens = torch.cat([tokens for modality, tokens in tokens_dict.items() if modality != selected_modality], dim=0)
+            # 获取其他模态的 tokens
+            other_tokens = torch.cat([tokens[0] for modality, tokens in tokens_dict.items() if modality != selected_modality], dim=0)
+            input_tokens = masked_tokens
+            # input_tokens = torch.cat([masked_tokens, other_tokens], dim=0)
+            # Debug: Print transformer_hf shape to check
+            
+            
+            # Transformer 层处理
+            if self.args.linear_tf:
+                transformer_output = self.mask_tf(input_tokens.unsqueeze(0))
+                transformer_output = transformer_output.squeeze(0)
+            else:
+                transformer_output = self.mask_tf(input_tokens)
 
         # 从 Transformer 输出中获取处理后的 hf
         # 根据原来的设定，mask后的部分（即 selected_modality）应该在 transformer 输出中对应

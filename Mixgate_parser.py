@@ -183,8 +183,8 @@ def extract_lines_from_files(directory, aimed_directory):
                 # print("dic =", dic)
                 replace_nodes(file_content, dic_nodes)
                 # print("file_content =", file_content)
-        if len(dic_nodes) > 5000:
-            continue                
+        # if len(dic_nodes) > 5000:
+        #     continue                
         with open(aimed_file_path, 'w') as file:
             for item in file_content:
                 if item != 'n0 = gnd\n':
@@ -197,8 +197,8 @@ def extract_lines_from_files(directory, aimed_directory):
 
 if __name__ == "__main__":
 # 使用示例
-    directory = '/home/jwt/ext_xmg'
-    aimed_directory = '/home/jwt/aimed_xmg'
+    directory = '/home/jwt/1500_xmg'
+    aimed_directory = '/home/jwt/aimed_xmg1500'
     if not os.path.exists(aimed_directory):
         os.makedirs(aimed_directory)
     extracted_lines = extract_lines_from_files(directory, aimed_directory)

@@ -19,7 +19,7 @@ def get_parse_args():
     parser.add_argument('--disable_encode', action='store_true', default=False)
 
     # system
-    parser.add_argument('--gpus', default='-1', 
+    parser.add_argument('--gpus', default='0', 
                              help='-1 for CPU, use comma for multiple gpus')
     parser.add_argument("--local-rank", default=0, type=int)
     parser.add_argument('--num_workers', type=int, default=0,
@@ -65,6 +65,7 @@ def get_parse_args():
     parser.add_argument('--tf_layer', type=int, default=4)
     parser.add_argument('--mask_ratio', type=float, default=0.03)
     parser.add_argument('--linear_tf', action='store_true', default=False)
+    parser.add_argument('--hier_tf', action='store_true', default=False)
     
     args = parser.parse_args()
 
@@ -98,7 +99,8 @@ def get_parse_args():
         args.load_model = os.path.join(model_path, args.load_model)
 
     args.local_rank = 0
-
+    
+    assert (args.linear_tf and args.hier_tf) == False, 'Only one of linear_tf and hier_tf can be True'
 
     return args
 
