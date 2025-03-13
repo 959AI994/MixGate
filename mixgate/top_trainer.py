@@ -23,7 +23,7 @@ class TopTrainer():
     def __init__(self,
                  args, 
                  model, 
-                 loss_weight = [1.0, 1.0, 0], 
+                 loss_weight = [1.0, 1.0, 1.0], 
                  device = 'cpu', 
                  distributed = False
                  ):
@@ -80,7 +80,7 @@ class TopTrainer():
             self.logger = Logger(self.log_path)
         
     def set_training_args(self, loss_weight=[], lr=-1, lr_step=-1, device='null'):
-        if len(loss_weight) == 2 and loss_weight != self.loss_weight:
+        if len(loss_weight) == 3 and loss_weight != self.loss_weight:
             print('[INFO] Update loss weight from {} to {}'.format(self.loss_weight, loss_weight))
             self.loss_weight = loss_weight
         if lr > 0 and lr != self.lr:
@@ -156,6 +156,11 @@ class TopTrainer():
         tt_dis_z = zero_normalization(batch['tt_dis'])
         func_loss = self.reg_loss(emb_dis_z, tt_dis_z)
 
+        # print("emb_dis:", emb_dis)
+        # print("emb_dis_z:", emb_dis_z)
+        # print("tt_dis_z:", tt_dis_z)
+        # print("func_loss:", func_loss)
+       
         # loss_status = {
         #     'prob_loss': prob_loss,
         #     'mcm_loss': mcm_loss
@@ -226,7 +231,9 @@ class TopTrainer():
                     time_stamp = time.time()
                     # Get loss
                     loss_status = self.run_batch(batch)
-                        
+                    
+                    # print("weight:", self.loss_weight[2])
+                    
                     loss = loss_status['prob_loss'] * self.loss_weight[0] + \
                         loss_status['mcm_loss'] * self.loss_weight[1] +\
                         loss_status['func_loss'] * self.loss_weight[2]

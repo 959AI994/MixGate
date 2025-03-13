@@ -59,12 +59,17 @@ if __name__ == '__main__':
     # model = nn.parallel.DistributedDataParallel(model, device_ids=[local_rank])
 
     trainer = mixgate.top_trainer.TopTrainer(args, model, distributed=True)
-    trainer.set_training_args(lr=1e-4, lr_step=50, loss_weight = [1.0, 1.0, 3.0])
+    trainer.set_training_args(lr=1e-4, lr_step=50, loss_weight = [0.0, 1.0, 0.0])
     print('[INFO] Stage 1 Training ...')
     trainer.train(num_epochs, train_dataset, val_dataset)
 
+    trainer.set_training_args(lr=1e-4, lr_step=50, loss_weight = [1.0, 0.0, 0.0])
     print('[INFO] Stage 2 Training ...')
-    trainer.set_training_args(loss_weight = [3.0, 1.0, 2.0], lr=1e-4, lr_step=50)
+    trainer.train(num_epochs, train_dataset, val_dataset)
+
+
+    print('[INFO] Stage 3 Training ...')
+    trainer.set_training_args(loss_weight = [0.0, 0.0, 1.0], lr=1e-4, lr_step=50)
     trainer.train(num_epochs, train_dataset, val_dataset)
 
     
