@@ -21,6 +21,7 @@ from .dg_model_xag import Model as DeepGate_Xag
 from .dg_model import Model as DeepGate_Aig
 import numpy as np
 
+from linformer import Linformer
 
 class TopModel(nn.Module):
     def __init__(self, 
@@ -64,8 +65,15 @@ class TopModel(nn.Module):
         #         param.requires_grad = False  
                 
         # Transformer
-        tf_layer = nn.TransformerEncoderLayer(d_model=args.dim_hidden * 2, nhead=args.tf_head, batch_first=True)
-        self.mask_tf = nn.TransformerEncoder(tf_layer, num_layers=args.tf_layer)
+        if self.args.linear_tf:
+            self.mask_tf = Linformer(
+                dim = args.dim_hidden * 2, k=args.dim_hidden*2, 
+                heads = args.tf_head, depth = args.tf_layer, seq_len=8192, 
+                one_kv_head=True, share_kv=True, 
+            )
+        else:
+            one_tf_layer = nn.TransformerEncoderLayer(d_model=args.dim_hidden * 2, nhead=args.tf_head, batch_first=True)
+            self.mask_tf = nn.TransformerEncoder(one_tf_layer, num_layers=args.tf_layer)
         
         # Token masking
         self.mask_token = nn.Parameter(torch.randn(1, args.dim_hidden))  # learnable mask token
@@ -234,7 +242,11 @@ class TopModel(nn.Module):
             batch_all_tokens = torch.cat([batch_masked_tokens, other_tokens], dim=0)
             
             # Transformer forward
-            batch_predicted_tokens = self.mask_tf(batch_all_tokens)
+            if self.args.linear_tf:
+                batch_predicted_tokens = self.mask_tf(batch_all_tokens.unsqueeze(0))
+                batch_predicted_tokens = batch_predicted_tokens.squeeze(0)
+            else:
+                batch_predicted_tokens = self.mask_tf(batch_all_tokens)
             batch_pred_masked_tokens = batch_predicted_tokens[:batch_masked_tokens.shape[0], :]
              # 收集预测的被掩码的 token
             mcm_predicted_tokens = torch.cat([mcm_predicted_tokens, batch_pred_masked_tokens], dim=0)
@@ -253,7 +265,11 @@ class TopModel(nn.Module):
         
         
         # Transformer 层处理
-        transformer_output = self.mask_tf(input_tokens)
+        if self.args.linear_tf:
+            transformer_output = self.mask_tf(input_tokens.unsqueeze(0))
+            transformer_output = transformer_output.squeeze(0)
+        else:
+            transformer_output = self.mask_tf(input_tokens)
 
         # 从 Transformer 输出中获取处理后的 hf
         # 根据原来的设定，mask后的部分（即 selected_modality）应该在 transformer 输出中对应

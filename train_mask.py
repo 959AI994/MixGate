@@ -21,15 +21,15 @@ import torch.distributed as dist
 # # 初始化分布式训练
 # dist.init_process_group(backend='nccl', init_method='env://')
 
-# os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
-DATA_DIR = './data/dg_pair'
+os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+DATA_DIR = './data'
 
 if __name__ == '__main__':
     args = get_parse_args()
     # here,we need to build some npz formate including mig,xmg,xag,aig fusion graph
 
     # circuit_path = 'datasets/pair_graphs.npz'
-    circuit_path ='/home/xqgrp/wangjingxin/datasets/mixgate_data/merged_all.npz'
+    circuit_path ='./data/merged_all.npz'
 
     num_epochs = args.num_epochs
     
@@ -48,10 +48,10 @@ if __name__ == '__main__':
     model = mixgate.top_model.TopModel(
         args, 
         # dc_ckpt='./ckpt/dc.pth', 
-        dg_ckpt_aig='/home/xqgrp/wangjingxin/pythonproject/MixGate/ckpt/model_aig.pth',
-        dg_ckpt_xag='/home/xqgrp/wangjingxin/pythonproject/MixGate/ckpt/model_xag.pth',
-        dg_ckpt_xmg='/home/xqgrp/wangjingxin/pythonproject/MixGate/ckpt/model_xmg.pth',
-        dg_ckpt_mig='/home/xqgrp/wangjingxin/pythonproject/MixGate/ckpt/model_mig.pth'
+        dg_ckpt_aig='./ckpt/model_aig.pth',
+        dg_ckpt_xag='./ckpt/model_xag.pth',
+        dg_ckpt_xmg='./ckpt/model_xmg.pth',
+        dg_ckpt_mig='./ckpt/model_mig.pth'
     )
     
     # model.to(device)  # 将模型移到正确的设备

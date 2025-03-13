@@ -6,7 +6,7 @@ def get_parse_args():
 
     # basic experiment setting
     parser.add_argument('--exp_id', default='train')
-    parser.add_argument('--debug', type=int, default=0)
+    parser.add_argument('--debug', default=False, action='store_true')
     parser.add_argument('--load_model', default='',
                              help='path to pretrained model')
     parser.add_argument('--resume', action='store_true',
@@ -64,6 +64,7 @@ def get_parse_args():
     parser.add_argument('--tf_head', type=int, default=8)
     parser.add_argument('--tf_layer', type=int, default=4)
     parser.add_argument('--mask_ratio', type=float, default=0.03)
+    parser.add_argument('--linear_tf', action='store_true', default=False)
     
     args = parser.parse_args()
 
