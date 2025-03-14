@@ -1,1 +1,3 @@
 MixGate
+
+torchrun --nproc_per_node=1 --master_port=29958 train_mask.py     --exp_id mcm_0.03     --batch_size 4     --num_epochs 5     --mask_ratio 0.03     --gpus 0
