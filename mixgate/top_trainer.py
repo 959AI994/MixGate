@@ -274,10 +274,8 @@ class TopTrainer():
                     self.save(os.path.join(self.log_dir, 'model_{:}.pth'.format(self.model_epoch)))
                     self.save(os.path.join(self.log_dir, 'model_last.pth'))
                 if self.local_rank == 0:
-                    # self.logger.write('{}| Epoch: {:}/{:} |Prob: {:.4f} |MCM: {:.4f} |Net: {:.2f}s\n'.format(
-                    #     phase, epoch, num_epoch, prob_loss_stats.avg, mcm_loss_stats.avg, batch_time.avg))
-                    self.logger.write('{}| Epoch: {:}/{:} |Prob: {:.4f} |Net: {:.2f}s\n'.format(
-                         phase, epoch, num_epoch, prob_loss_stats.avg, batch_time.avg))
+                    self.logger.write('{}| Epoch: {:}/{:} |Prob: {:.4f} |Func: {:.4f} |MCM: {:.4f} |Prob_Aig: {:.4f} |Prob_Xmg: {:.4f} |Prob_Xag: {:.4f} |Prob_Mig: {:.4f}|Net: {:.2f}s \n'.format(
+                        phase, epoch, num_epoch, prob_loss_stats.avg,func_loss_stats.avg,mcm_loss_stats.avg, prob_loss_aig.avg, prob_loss_mig.avg, prob_loss_xmg.avg, prob_loss_xag.avg,batch_time.avg))
                     bar.finish()
             
             # Learning rate decay

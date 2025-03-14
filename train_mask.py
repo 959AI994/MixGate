@@ -29,7 +29,7 @@ if __name__ == '__main__':
     # here,we need to build some npz formate including mig,xmg,xag,aig fusion graph
 
     # circuit_path = 'datasets/pair_graphs.npz'
-    circuit_path ='/home/jwt/1/150/merged_all150.npz'
+    circuit_path ='/home/xqgrp/wangjingxin/datasets/mixgate_data/merged_all1500.npz'
     num_epochs = args.num_epochs
     
     print('[INFO] Parse Dataset')
@@ -37,20 +37,15 @@ if __name__ == '__main__':
     # dataset = mixgate.AigParser(DATA_DIR, circuit_path)
 
     train_dataset, val_dataset = dataset.get_dataset()
-    # for data in train_dataset:
-    #     # print(f"edge_index: {data.edge_index}")
-    #     # print(f"num_nodes: {data.num_nodes}")
-    #     # print(f"name: {data.name}")
-    #     assert data.edge_index.min() >= 0, "edge_index 包含负数索引"
-    #     assert data.edge_index.max() < data.num_nodes, "edge_index 包含超出范围的索引"
+
     print('[INFO] Create Model and Trainer')
     model = mixgate.top_model.TopModel(
         args, 
         # dc_ckpt='./ckpt/dc.pth', 
-        dg_ckpt_aig='/home/jwt/MixGate/ckpt/model_func_aig.pth',
-        dg_ckpt_xag='/home/jwt/MixGate/ckpt/model_func_xag.pth',
-        dg_ckpt_xmg='/home/jwt/MixGate/ckpt/model_func_xmg.pth',
-        dg_ckpt_mig='/home/jwt/MixGate/ckpt/model_func_mig.pth'
+        dg_ckpt_aig='/home/xqgrp/wangjingxin/pythonproject/MixGate/ckpt/model_func_aig.pth',
+        dg_ckpt_xag='/home/xqgrp/wangjingxin/pythonproject/MixGate/ckpt/model_func_xag.pth',
+        dg_ckpt_xmg='/home/xqgrp/wangjingxin/pythonproject/MixGate/ckpt/model_func_xmg.pth',
+        dg_ckpt_mig='/home/xqgrp/wangjingxin/pythonproject/MixGate/ckpt/model_func_mig.pth'
     )
     
     # model.to(device)  # 将模型移到正确的设备
