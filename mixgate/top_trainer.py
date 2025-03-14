@@ -143,7 +143,7 @@ class TopTrainer():
         prob_loss = self.reg_loss(pm_prob, batch['prob'].unsqueeze(1))
         
         # Task 2: Mask PM Circuit Modeling  
-        #mcm_loss = self.reg_loss(mcm_pm_tokens[mask_indices], pm_tokens[mask_indices])
+        mcm_loss = self.reg_loss(mcm_pm_tokens[mask_indices], pm_tokens[mask_indices])
         
         # Task 3: Functional Similarity        
         # node_a =  mcm_pm_tokens[batch['tt_pair_index'][0]]
@@ -168,7 +168,7 @@ class TopTrainer():
         # 返回损失和子模型概率
         loss_status = {
             'prob_loss': prob_loss,
-            #'mcm_loss': mcm_loss,
+            'mcm_loss': mcm_loss,
             'aig_prob': prob_aigloss,
             'mig_prob': prob_migloss,
             'xmg_prob': prob_xmgloss,
@@ -201,14 +201,14 @@ class TopTrainer():
         
         # AverageMeter
         batch_time = AverageMeter()
-        #prob_loss_stats, func_loss_stats, mcm_loss_stats, prob_loss_aig, prob_loss_mig, prob_loss_xmg, prob_loss_xag = AverageMeter(), AverageMeter(), AverageMeter(), AverageMeter(), AverageMeter(), AverageMeter(), AverageMeter()
-        prob_loss_stats, func_loss_stats, prob_loss_aig, prob_loss_mig, prob_loss_xmg, prob_loss_xag = AverageMeter(), AverageMeter(), AverageMeter(), AverageMeter(), AverageMeter(),  AverageMeter()
+        prob_loss_stats, func_loss_stats, mcm_loss_stats, prob_loss_aig, prob_loss_mig, prob_loss_xmg, prob_loss_xag = AverageMeter(), AverageMeter(), AverageMeter(), AverageMeter(), AverageMeter(), AverageMeter(), AverageMeter()
+        # prob_loss_stats, func_loss_stats, prob_loss_aig, prob_loss_mig, prob_loss_xmg, prob_loss_xag = AverageMeter(), AverageMeter(), AverageMeter(), AverageMeter(), AverageMeter(),  AverageMeter()
         # Train
         print('[INFO] Start training, lr = {:.4f}'.format(self.optimizer.param_groups[0]['lr']))
         for epoch in range(num_epoch): 
             prob_loss_stats.reset()
             func_loss_stats.reset()
-            #mcm_loss_stats.reset()
+            mcm_loss_stats.reset()
             prob_loss_aig.reset()
             prob_loss_xag.reset()
             prob_loss_xmg.reset()
@@ -239,11 +239,11 @@ class TopTrainer():
                     #                     f"XMG Prob: {loss_status['xmg_prob'].mean().item():.4f} | "
                     #                     f"XAG Prob: {loss_status['xag_prob'].mean().item():.4f}\n")
                         
-                    # loss = loss_status['prob_loss'] * self.loss_weight[0] + \
-                    #     loss_status['mcm_loss'] * self.loss_weight[1] +\
-                    #     loss_status['func_loss'] * self.loss_weight[2]
                     loss = loss_status['prob_loss'] * self.loss_weight[0] + \
+                        loss_status['mcm_loss'] * self.loss_weight[1] +\
                         loss_status['func_loss'] * self.loss_weight[2]
+                    # loss = loss_status['prob_loss'] * self.loss_weight[0] + \
+                    #     loss_status['func_loss'] * self.loss_weight[2]
                     
                     loss /= sum(self.loss_weight)
                     loss = loss.mean()
@@ -255,14 +255,14 @@ class TopTrainer():
                     batch_time.update(time.time() - time_stamp)
                     prob_loss_stats.update(loss_status['prob_loss'].item())
                     func_loss_stats.update(loss_status['func_loss'].item())
-                    #mcm_loss_stats.update(loss_status['mcm_loss'].item())
+                    mcm_loss_stats.update(loss_status['mcm_loss'].item())
                     prob_loss_aig.update(loss_status['aig_prob'].item())
                     prob_loss_mig.update(loss_status['mig_prob'].item())
                     prob_loss_xmg.update(loss_status['xmg_prob'].item())
                     prob_loss_xag.update(loss_status['xag_prob'].item())
                     if self.local_rank == 0:
                         Bar.suffix = '[{:}/{:}]|Tot: {total:} |ETA: {eta:} '.format(iter_id, len(dataset), total=bar.elapsed_td, eta=bar.eta_td)
-                        #Bar.suffix += '|Prob: {:.4f} |MCM: {:.4f} '.format(prob_loss_stats.avg, mcm_loss_stats.avg)
+                        Bar.suffix += '|Prob: {:.4f} |MCM: {:.4f} '.format(prob_loss_stats.avg, mcm_loss_stats.avg)
                         Bar.suffix += '|Prob: {:.4f}  '.format(prob_loss_stats.avg)
                         Bar.suffix += '|Prob_Aig: {:.4f} |Prob_Xmg: {:.4f} |Prob_Xag: {:.4f} |Prob_Mig: {:.4f} '.format(prob_loss_aig.avg, prob_loss_mig.avg, prob_loss_xmg.avg, prob_loss_xag.avg)
                         Bar.suffix += '|Func: {:.4f} '.format(func_loss_stats.avg)
