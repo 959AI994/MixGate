@@ -197,8 +197,8 @@ def extract_lines_from_files(directory, aimed_directory):
 
 if __name__ == "__main__":
 # 使用示例
-    directory = '/home/jwt/1500_xmg'
-    aimed_directory = '/home/jwt/aimed_xmg1500'
+    directory = '/home/jwt/150_xmg'
+    aimed_directory = '/home/jwt/aimed_xmg150'
     if not os.path.exists(aimed_directory):
         os.makedirs(aimed_directory)
     extracted_lines = extract_lines_from_files(directory, aimed_directory)

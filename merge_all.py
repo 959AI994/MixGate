@@ -3,13 +3,13 @@ import os
 
 # 文件路径列表
 data_paths = [
-    ('/home/jwt/DeepGate2_mig/mig_data/train/graphs.npz', '/home/jwt/DeepGate2_mig/mig_data/train/labels.npz', '/home/jwt/DeepGate2_mig/mig_data/train/graphs1.npz'),
-    ('/home/jwt/DeepGate2_mig/xmg_data/train/graphs.npz', '/home/jwt/DeepGate2_mig/xmg_data/train/labels.npz', '/home/jwt/DeepGate2_mig/xmg_data/train/graphs1.npz'),
-    ('/home/jwt/DeepGate2_mig/xag_data/train/graphs.npz', '/home/jwt/DeepGate2_mig/xag_data/train/labels.npz', '/home/jwt/DeepGate2_mig/xag_data/train/graphs1.npz'),
+    ('/home/jwt/DeepGate2_mig/mig_data150/train/graphs150.npz', '/home/jwt/DeepGate2_mig/mig_data150/train/labels150.npz', '/home/jwt/DeepGate2_mig/mig_data150/train/graphs_150.npz'),
+    ('/home/jwt/DeepGate2_mig/xmg_data150/train/graphs150.npz', '/home/jwt/DeepGate2_mig/xmg_data150/train/labels150.npz', '/home/jwt/DeepGate2_mig/xmg_data150/train/graphs_150.npz'),
+    ('/home/jwt/DeepGate2_mig/xag_data150/train/graphs150.npz', '/home/jwt/DeepGate2_mig/xag_data150/train/labels150.npz', '/home/jwt/DeepGate2_mig/xag_data150/train/graphs_150.npz'),
 ]
 
-output_paths = ['/home/jwt/DeepGate2_mig/mig_data/train/graphs1.npz', '/home/jwt/DeepGate2_mig/xmg_data/train/graphs1.npz', '/home/jwt/DeepGate2_mig/xag_data/train/graphs1.npz', '/home/jwt/1/aig_npz/graphs.npz']
-final_output_path = '/home/jwt/1/merged_all1.npz'
+output_paths = ['/home/jwt/DeepGate2_mig/mig_data150/train/graphs_150.npz', '/home/jwt/DeepGate2_mig/xmg_data150/train/graphs_150.npz', '/home/jwt/DeepGate2_mig/xag_data150/train/graphs_150.npz', '/home/jwt/1/aig_npz/small_graphs150.npz']
+final_output_path = '/home/jwt/1/150/merged_all150.npz'
 # aiggraph_path = ['/home/jwt/1/aig_npz/aig_graphs.npz']
 
 # 合并函数
@@ -74,6 +74,8 @@ def merge_all(output_paths, final_output_path):
     # 初始化合并后的字典
     merged = {}
     circuit = []
+    circuit_names = []
+    count_aig = 0
     # 加载 graphs.npz
     for i, path in enumerate(output_paths):
         graphs_data = np.load(path, allow_pickle=True)['circuits'].item()
@@ -84,6 +86,8 @@ def merge_all(output_paths, final_output_path):
             # 如果电路名称不在 merged 中，初始化一个空字典
             if circuit_name not in merged:
                 merged[circuit_name] = {}
+            if i != 3:
+                circuit_names.append(circuit_name)
             # 根据文件类型合并数据
             if i == 0:  # mig
                 merged[circuit_name]['mig_x'] = graph['x']
@@ -107,26 +111,30 @@ def merge_all(output_paths, final_output_path):
                 merged[circuit_name]['xag_tt_dis'] = graph['tt_dis']
                 merged[circuit_name]['xag_min_tt_dis'] = graph['min_tt_dis']
             elif i == 3:  # aig
-                merged[circuit_name]['aig_x'] = graph['x']
-                merged[circuit_name]['aig_edge_index'] = graph['edge_index']
-                merged[circuit_name]['aig_prob'] = graph['prob']
-                merged[circuit_name]['aig_forward_level'] = graph['forward_level']
-                merged[circuit_name]['aig_backward_level'] = graph['backward_level']
-                merged[circuit_name]['aig_forward_index'] = graph['forward_index']
-                merged[circuit_name]['aig_backward_index'] = graph['backward_index']
-                merged[circuit_name]['aig_gate'] = graph['gate']
-                merged[circuit_name]['aig_tt_sim'] = graph['tt_sim']
-                merged[circuit_name]['aig_tt_pair_index'] = graph['tt_pair_index']
+                circuit_names = tuple(circuit_names)
+                if circuit_name in circuit_names:
+                    count_aig += 1
+                    merged[circuit_name]['aig_x'] = graph['x']
+                    merged[circuit_name]['aig_edge_index'] = graph['edge_index']
+                    merged[circuit_name]['aig_prob'] = graph['prob']
+                    merged[circuit_name]['aig_forward_level'] = graph['forward_level']
+                    merged[circuit_name]['aig_backward_level'] = graph['backward_level']
+                    merged[circuit_name]['aig_forward_index'] = graph['forward_index']
+                    merged[circuit_name]['aig_backward_index'] = graph['backward_index']
+                    merged[circuit_name]['aig_gate'] = graph['gate']
+                    merged[circuit_name]['aig_tt_sim'] = graph['tt_sim']
+                    merged[circuit_name]['aig_tt_pair_index'] = graph['tt_pair_index']
 
     # 保存合并后的数据
     np.savez_compressed(final_output_path, circuits=merged, allowZip64=True)
+    print("aig graphs count = ", count_aig)
     print(f"Final Merged data saved to {final_output_path}")
     merged_data = np.load(final_output_path, allow_pickle=True)['circuits'].item() 
     for circuit_name, graph in merged_data.items():
         if len(merged_data[circuit_name]) != 17:
                 # print("circuit_name =", len(circuit_name))
                 circuit.append(circuit_name)
-    print("circuit = ", circuit)
+    #print("circuit = ", circuit)
 
     # filter_dict_by_keys_inplace(merged, circuit)
 

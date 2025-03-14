@@ -23,7 +23,7 @@ class TopTrainer():
     def __init__(self,
                  args, 
                  model, 
-                 loss_weight = [1.0, 1.0, 1.0], 
+                 loss_weight = [1.0, 1.0, 0], 
                  device = 'cpu', 
                  distributed = False
                  ):
@@ -145,22 +145,14 @@ class TopTrainer():
         # Task 2: Mask PM Circuit Modeling  
         #mcm_loss = self.reg_loss(mcm_pm_tokens[mask_indices], pm_tokens[mask_indices])
         
-        # Task 3: Functional Similarity        
-        # node_a =  mcm_pm_tokens[batch['tt_pair_index'][0]]
-        # node_b =  mcm_pm_tokens[batch['tt_pair_index'][1]]
-        # 提取功能部分（hf）
-        node_a = mcm_pm_tokens[batch['tt_pair_index'][0], self.args.dim_hidden:]  # 后半部分
-        node_b = mcm_pm_tokens[batch['tt_pair_index'][1], self.args.dim_hidden:]
+        # Task 3: Functional Similarity
+        node_a =  mcm_pm_tokens[batch['tt_pair_index'][0]]
+        node_b =  mcm_pm_tokens[batch['tt_pair_index'][1]]
         emb_dis = 1 - torch.cosine_similarity(node_a, node_b, eps=1e-8)
         emb_dis_z = zero_normalization(emb_dis)
         tt_dis_z = zero_normalization(batch['tt_dis'])
         func_loss = self.reg_loss(emb_dis_z, tt_dis_z)
 
-        # print("emb_dis:", emb_dis)
-        # print("emb_dis_z:", emb_dis_z)
-        # print("tt_dis_z:", tt_dis_z)
-        # print("func_loss:", func_loss)
-       
         # loss_status = {
         #     'prob_loss': prob_loss,
         #     'mcm_loss': mcm_loss
@@ -209,11 +201,6 @@ class TopTrainer():
             prob_loss_stats.reset()
             func_loss_stats.reset()
             #mcm_loss_stats.reset()
-            prob_loss_aig.reset()
-            prob_loss_xag.reset()
-            prob_loss_xmg.reset()
-            prob_loss_mig.reset()
-
             for phase in ['train', 'val']:
                 if phase == 'train':
                     dataset = train_dataset
@@ -266,8 +253,8 @@ class TopTrainer():
                         Bar.suffix += '|Prob: {:.4f}  '.format(prob_loss_stats.avg)
                         Bar.suffix += '|Prob_Aig: {:.4f} |Prob_Xmg: {:.4f} |Prob_Xag: {:.4f} |Prob_Mig: {:.4f} '.format(prob_loss_aig.avg, prob_loss_mig.avg, prob_loss_xmg.avg, prob_loss_xag.avg)
                         Bar.suffix += '|Func: {:.4f} '.format(func_loss_stats.avg)
-                        Bar.suffix += '|Net: {:.2f}s \n'.format(batch_time.avg)
-                        # self.logger.write(Bar.suffix)  # 将更新后的内容写入文件
+                        Bar.suffix += '|Net: {:.2f}s '.format(batch_time.avg)
+                        self.logger.write(Bar.suffix)  # 将更新后的内容写入文件
                         bar.next()
 
                 if phase == 'train' and self.model_epoch % 10 == 0:
