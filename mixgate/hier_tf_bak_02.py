@@ -8,46 +8,6 @@ import torch.nn.functional as F
 from torch import nn
 from torch import Tensor
 from torchvision.transforms import Compose, Resize, ToTensor
-from torch_geometric.nn import GATConv
-from torch.nn import Linear, LayerNorm
-
-class GATTransformerEncoderLayer(torch.nn.Module):
-    def __init__(self, in_channels, out_channels, heads=8, concat=False, dropout=0.1, ff_hidden_dim=128):
-        super(GATTransformerEncoderLayer, self).__init__()
-        
-        # GAT multi-head attention
-        self.gat = GATConv(in_channels, out_channels, heads=heads, dropout=dropout, concat=concat)
-        
-        # Feed-forward network (FFN)
-        self.ffn = torch.nn.Sequential(
-            Linear(out_channels*heads if concat else out_channels, ff_hidden_dim),
-            torch.nn.ReLU(),
-            Linear(ff_hidden_dim, out_channels*heads if concat else out_channels)
-        )
-        
-        # Layer normalization
-        self.norm1 = LayerNorm(out_channels*heads if concat else out_channels)
-        self.norm2 = LayerNorm(out_channels*heads if concat else out_channels)
-        
-        # Dropout
-        self.dropout = torch.nn.Dropout(dropout)
-
-    def forward(self, x, edge_index):
-        # GAT layer with residual connection
-        x_residual = x.clone()
-        x = self.gat(x, edge_index)
-        x = self.dropout(x)
-        x = x + x_residual  # Residual connection
-        x = self.norm1(x)   # Layer normalization
-        
-        # Feed-forward network with residual connection
-        x_residual = x.clone()
-        x = self.ffn(x)
-        x = self.dropout(x)
-        x = x + x_residual  # Residual connection
-        x = self.norm2(x)   # Layer normalization
-        
-        return x
 
 class HierarchicalTransformer(nn.Module):
     def __init__(self, args, modalities=['aig', 'xag', 'xmg', 'mig']):
@@ -61,16 +21,13 @@ class HierarchicalTransformer(nn.Module):
         self.modalities = modalities
         
         self.hop_tfs = nn.ModuleList([
-            GATTransformerEncoderLayer(self.dim*2, self.dim*2, heads=self.hier_tf_head, ff_hidden_dim=self.dim*8)
-            for i in range(args.hier_tf_layer) for modal in modalities
+            nn.TransformerEncoder(nn.TransformerEncoderLayer(d_model=self.dim * 2, nhead=self.hier_tf_head, batch_first=True), num_layers=self.hier_tf_layer) for modal in modalities
         ])
         self.lev_tfs = nn.ModuleList([
-            GATTransformerEncoderLayer(self.dim*2, self.dim*2, heads=self.hier_tf_head, ff_hidden_dim=self.dim*8)
-            for i in range(args.hier_tf_layer) for modal in modalities
+            nn.TransformerEncoder(nn.TransformerEncoderLayer(d_model=self.dim * 2, nhead=self.hier_tf_head, batch_first=True), num_layers=self.hier_tf_layer) for modal in modalities
         ])
         self.graph_tfs = nn.ModuleList([
-            GATTransformerEncoderLayer(self.dim*2, self.dim*2, heads=self.hier_tf_head, ff_hidden_dim=self.dim*8)
-            for i in range(args.hier_tf_layer) for modal in modalities
+            nn.TransformerEncoder(nn.TransformerEncoderLayer(d_model=self.dim * 2, nhead=self.hier_tf_head, batch_first=True), num_layers=self.hier_tf_layer) for modal in modalities
         ])
         self.mcm_tf = nn.TransformerEncoder(nn.TransformerEncoderLayer(d_model=self.dim * 2, nhead=self.heads, batch_first=True), num_layers=self.depth)
         self.hop_nodes = nn.Parameter(torch.randn(1, args.dim_hidden * 2)) 
@@ -106,36 +63,33 @@ class HierarchicalTransformer(nn.Module):
                     level_hop_tokens = torch.zeros((0, self.dim * 2)).to(device)
                     # 为了节约显存，每次最多处理 MAX_HOP_ONCE 个hop
                     for i in range(0, no_hops_in_level, self.max_hop_once):
+                        hop_tokens = self.hop_nodes.repeat(min(self.max_hop_once, no_hops_in_level - i), 1)
+                        hop_tokens = hop_tokens.unsqueeze(1)
                         nodes_in_hop = node_tokens[hop_list[hop_flag][i:i+self.max_hop_once]]
-                        nodes_in_hop_flatten = torch.zeros((0, self.dim * 2)).to(device)
-                        no_hops_once = min(self.max_hop_once, no_hops_in_level - i)
-                        # Add the hop-level tokens as the beginning of nodes_in_hop_flatten
-                        nodes_in_hop_flatten = torch.cat([self.hop_nodes.repeat(no_hops_once, 1), nodes_in_hop_flatten], dim=0)
-                        no_nodes_once = 0
-                        hop_attn = []
+                        max_hop_length = hop_length_list[hop_flag][i:i+self.max_hop_once].max().item()
+                        nodes_in_hop = nodes_in_hop[:, :max_hop_length, :]
+                        nodes_in_hop = torch.cat([hop_tokens, nodes_in_hop], dim=1)
+                        key_padding_mask = torch.zeros((min(self.max_hop_once, no_hops_in_level - i), max_hop_length+1), dtype=torch.bool).to(device)
                         for j, length in enumerate(hop_length_list[hop_flag][i:i+self.max_hop_once]):
-                            nodes_in_hop_flatten = torch.cat([nodes_in_hop_flatten, nodes_in_hop[j, :length, :]], dim=0)
-                            hop_attn.append([j, j])
-                            for k in range(length):
-                                hop_attn.append([no_hops_once + no_nodes_once + k, j])
-                            no_nodes_once += length  
-                        hop_attn = torch.tensor(hop_attn, dtype=torch.long).t().contiguous().to(device)   
-                        output_nodes_in_hop = self.hop_tfs[modal_k](nodes_in_hop_flatten, hop_attn)
-                        hop_tokens = output_nodes_in_hop[:no_hops_once, :]
+                            key_padding_mask[j, length + 1:] = True
+                        output_all_hop_tokens = self.hop_tfs[modal_k](nodes_in_hop, src_key_padding_mask=key_padding_mask)
+                        # print(nodes_in_hop.shape)
+                        hop_tokens = output_all_hop_tokens[:, 0, :]
                         all_hop_tokens = torch.cat([all_hop_tokens, hop_tokens], dim=0)
                         level_hop_tokens = torch.cat([level_hop_tokens, hop_tokens], dim=0)
+                        # del nodes_in_hop, key_padding_mask, output_all_hop_tokens   # TODO: 释放显存是否有效？会影响梯度回传？
                     # 获得 subg tokens
-                    hops_in_subg = torch.cat([self.subg_nodes, level_hop_tokens], dim=0)
-                    subg_attn = torch.tensor([[i, 0] for i in range(hops_in_subg.size(0))], dtype=torch.long).t().contiguous().to(device)
-                    output_subg_tokens = self.lev_tfs[modal_k](hops_in_subg, subg_attn)
-                    subg_tokens = output_subg_tokens[0:1, :]
+                    subg_tokens = self.subg_nodes.repeat(1, 1)
+                    hops_in_subg = torch.cat([subg_tokens, level_hop_tokens], dim=0).unsqueeze(0)
+                    output_all_subg_tokens = self.lev_tfs[modal_k](hops_in_subg)
+                    subg_tokens = output_all_subg_tokens[:, 0, :]
                     all_subg_tokens = torch.cat([all_subg_tokens, subg_tokens], dim=0)
                     
                 # 获得 graph tokens
-                subg_in_graph = torch.cat([self.graph_nodes, all_subg_tokens], dim=0)
-                graph_attn = torch.tensor([[i, 0] for i in range(subg_in_graph.size(0))], dtype=torch.long).t().contiguous().to(device)
-                output_graph_tokens = self.graph_tfs[modal_k](subg_in_graph, graph_attn)
-                graph_tokens = output_graph_tokens[0:1, :]
+                graph_tokens = self.graph_nodes.repeat(1, 1)
+                subg_in_graph = torch.cat([graph_tokens, all_subg_tokens], dim=0).unsqueeze(0)
+                output_all_graph_tokens = self.graph_tfs[modal_k](subg_in_graph)
+                graph_tokens = output_all_graph_tokens[:, 0, :]
                 
                 # 一个模态的tokens由多层次组成：hop、level、graph
                 modal_tokens = torch.cat([all_hop_tokens, all_subg_tokens, graph_tokens], dim=0)

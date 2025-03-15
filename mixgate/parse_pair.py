@@ -160,7 +160,7 @@ class NpzParser_Pair():
                             hop_nodes_pad = np.zeros((1, MAX_HOP_LENGTH), dtype=int)
                             hop_nodes_pad[0, :len(hop_nodes)] = hop_nodes
                             hop_list = np.concatenate((hop_list, hop_nodes_pad), axis=0)
-                            hop_lev_list.append(cur_hop_level+1)
+                            hop_lev_list.append(cur_hop_level)
                             hop_node_list.append(po_idx)
                             hop_length.append(len(hop_nodes))
                             if len(hop_node_list) > max_hop:
