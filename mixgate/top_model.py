@@ -134,6 +134,10 @@ class TopModel(nn.Module):
             masked_tokens: Tokens with some positions replaced by mask token
             mask_indices: Indices of masked tokens
         """
+        if mask_ratio == 0:
+            masked_tokens = tokens.clone()
+            return masked_tokens, None
+        
         seq_len = len(tokens)
         mask_indices = torch.randperm(seq_len)[:int(mask_ratio * seq_len)]  # randomly select tokens to mask
         mask_flag = torch.zeros(seq_len, dtype=torch.bool)
@@ -273,40 +277,16 @@ class TopModel(nn.Module):
             # input_tokens = torch.cat([masked_tokens, other_tokens], dim=0)
             # Debug: Print transformer_hf shape to check
             
-            
-            # Transformer 层处理
-            if self.args.linear_tf:
-                transformer_output = self.mask_tf(input_tokens.unsqueeze(0))
-                transformer_output = transformer_output.squeeze(0)
-            else:
-                transformer_output = self.mask_tf(input_tokens)
+        hf_tokens = mcm_predicted_tokens[:, self.args.dim_hidden:]
+        masked_prob = encoder.pred_prob(hf_tokens)
 
-        # 从 Transformer 输出中获取处理后的 hf
-        # 根据原来的设定，mask后的部分（即 selected_modality）应该在 transformer 输出中对应
-        # transformer_hf = transformer_output[:masked_tokens.shape[0], :]  # 获取掩码部分的输出
-        transformer_hf =transformer_output[:, self.args.dim_hidden:] 
-        # transformer_hf = transformer_hf.view(-1, 1)  # 调整维度为 (batch_size, 128)
-        
-        # print("[Debug]transformer_hf shape:", transformer_hf.shape)
-
-        # 用 transformer_hf 进行预测
-        masked_prob = encoder.pred_prob(transformer_hf)
-
-        # masked_prob = encoder.pred_prob(masked_hf)
-
-        # print("[debug] masked_prob:", masked_prob)
-        # 将 masked_prob 转为 numpy 数组并保存
-        masked_prob_np = masked_prob.cpu().detach().numpy()
-        # 保存到 txt 文件
-        # np.savetxt("masked_prob.txt", masked_prob_np)
-        
         # 获取每个模态的预测概率
         aig_prob = self.deepgate_aig.pred_prob(aig_hf)
         mig_prob = self.deepgate_mig.pred_prob(mig_hf)
         xmg_prob = self.deepgate_xmg.pred_prob(xmg_hf)
         xag_prob = self.deepgate_xag.pred_prob(xag_hf)
 
-        return mcm_predicted_tokens, mask_indices, selected_tokens, masked_prob,aig_prob, mig_prob, xmg_prob, xag_prob
+        return mcm_predicted_tokens, mask_indices, selected_tokens, masked_prob, aig_prob, mig_prob, xmg_prob, xag_prob
    
 
     def load(self, model_path):

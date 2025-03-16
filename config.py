@@ -28,7 +28,7 @@ def get_parse_args():
                              help='disable when the input size is not fixed.')
     parser.add_argument('--random-seed', type=int, default=208, 
                              help='random seed')
-    parser.add_argument('--max_hop_once', type=int, default=256, 
+    parser.add_argument('--max_hop_once', type=int, default=128, 
                              help='max hop to process in one time')
 
     # log
