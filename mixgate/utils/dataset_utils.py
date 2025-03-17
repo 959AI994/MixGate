@@ -42,7 +42,11 @@ class OrderedData(Data):
     #         return 0
 
     def __inc__(self, key, value, *args, **kwargs):
-        if 'index' in key or 'face' in key:
+        if 'index' in key or 'face' in key or \
+            key == 'aig_hop' or key == 'aig_hop_node' or \
+            key == 'xag_hop' or key == 'xag_hop_node' or \
+            key == 'xmg_hop' or key == 'xmg_hop_node' or \
+            key == 'mig_hop' or key == 'mig_hop_node':
             # 返回当前图中节点数，按模态区分
             if 'aig' in key:
                 return len(self.aig_x)  # AIG 模态的节点数
@@ -88,7 +92,7 @@ def parse_pyg_mlpgate(x, edge_index, tt_dis, tt_pair_index, \
     edge_index = torch.tensor(edge_index, dtype=torch.long)
     edge_index = edge_index.t().contiguous()
     
-    tt_dis = torch.tensor(tt_dis)
+    tt_dis = torch.tensor(tt_dis.astype('float'))
     tt_pair_index = torch.tensor(tt_pair_index, dtype=torch.long).t().contiguous()
 
     forward_level, forward_index, backward_level, backward_index = return_order_info(edge_index, x_torch.size(0))

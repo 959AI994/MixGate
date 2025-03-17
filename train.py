@@ -7,8 +7,8 @@ import torch
 import os
 from config import get_parse_args
 
-os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
-DATA_DIR = '/home/xqgrp/wangjingxin/datasets/mixgate_data'
+# os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
+DATA_DIR = './data'
 
 if __name__ == '__main__':
     args = get_parse_args()
@@ -21,7 +21,7 @@ if __name__ == '__main__':
     print('[INFO] Create Model and Trainer')
     model = mixgate.Model()
     
-    trainer = mixgate.Trainer(args, model, distributed=True)
+    trainer = mixgate.Trainer(args, model, distributed=False)
     trainer.set_training_args(loss_weight=[3.0, 1.0, 0.5], lr=1e-4, lr_step=50)
     print('[INFO] Stage 1 Training ...')
     trainer.train(num_epochs, train_dataset, val_dataset)

@@ -1054,3 +1054,28 @@ def parse_bench(file, gate_to_index={'PI': 0, 'AND': 1, 'NOT': 2}, MAX_LENGTH=-1
     data, level_list = feature_gen_level(data, fanout_list)
     data = rename_node(data)
     return data, edge_data, fanin_list, fanout_list, level_list
+
+def get_hops(idx, _edge_index, k_hop=4):
+    last_target_idx = [idx]
+    curr_target_idx = []
+    hop_nodes = []
+    hop_edges = torch.zeros((2, 0), dtype=torch.long)
+    edge_index = torch.tensor(_edge_index)
+    for k in range(k_hop):
+        if len(last_target_idx) == 0:
+            break
+        for n in last_target_idx:
+            ne_mask = edge_index[1] == n
+            curr_target_idx += edge_index[0, ne_mask].tolist()
+            hop_edges = torch.cat([hop_edges, edge_index[:, ne_mask]], dim=-1)
+            hop_nodes += edge_index[0, ne_mask].unique().tolist()
+        last_target_idx = list(set(curr_target_idx))
+        curr_target_idx = []
+    
+    if len(hop_nodes) < 2:
+        return []
+    
+    # Parse hop 
+    hop_nodes = torch.tensor(hop_nodes).unique().long()
+    hop_nodes = torch.cat([hop_nodes, torch.tensor([idx])])
+    return hop_nodes

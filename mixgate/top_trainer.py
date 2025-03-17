@@ -1,3 +1,4 @@
+# ---------------------------------------------------不含有MCM Loss---------------------------------------------------------------------
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -128,12 +129,7 @@ class TopTrainer():
         
     def run_batch(self, batch):
         mcm_pm_tokens, mask_indices, pm_tokens, pm_prob,aig_prob, mig_prob, xmg_prob, xag_prob = self.model(batch)
-        # print("batch =", batch)
         # # 计算每个子模型的损失
-        # prob_loss = self.reg_loss(aig_prob, batch['prob'].unsqueeze(1)) + \
-        #             self.reg_loss(mig_prob, batch['prob'].unsqueeze(1)) + \
-        #             self.reg_loss(xmg_prob, batch['prob'].unsqueeze(1)) + \
-        #             self.reg_loss(xag_prob, batch['prob'].unsqueeze(1))
         prob_aigloss = self.reg_loss(aig_prob, batch['aig_prob'].unsqueeze(1))
         prob_migloss = self.reg_loss(mig_prob, batch['prob'].unsqueeze(1))
         prob_xmgloss = self.reg_loss(xmg_prob, batch['xmg_prob'].unsqueeze(1))
@@ -153,10 +149,6 @@ class TopTrainer():
         tt_dis_z = zero_normalization(batch['tt_dis'])
         func_loss = self.reg_loss(emb_dis_z, tt_dis_z)
 
-        # loss_status = {
-        #     'prob_loss': prob_loss,
-        #     'mcm_loss': mcm_loss
-        # }
         # 返回损失和子模型概率
         loss_status = {
             'prob_loss': prob_loss,
@@ -262,7 +254,9 @@ class TopTrainer():
                     print('[INFO] Learning rate decay to {}'.format(self.lr))
                 for param_group in self.optimizer.param_groups:
                     param_group['lr'] = self.lr
-            
+
+
+# ---------------------------------------------------含有MCM Loss---------------------------------------------------------------------
 # from __future__ import absolute_import
 # from __future__ import division
 # from __future__ import print_function

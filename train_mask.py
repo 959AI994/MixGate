@@ -28,10 +28,10 @@ if __name__ == '__main__':
     model = mixgate.top_model.TopModel(
         args, 
         # dc_ckpt='./ckpt/dc.pth', 
-        dg_ckpt_aig='/home/xqgrp/wangjingxin/pythonproject/MixGate/ckpt/model_func_aig.pth',
-        dg_ckpt_xag='/home/xqgrp/wangjingxin/pythonproject/MixGate/ckpt/model_func_xag.pth',
-        dg_ckpt_xmg='/home/xqgrp/wangjingxin/pythonproject/MixGate/ckpt/model_func_xmg.pth',
-        dg_ckpt_mig='/home/xqgrp/wangjingxin/pythonproject/MixGate/ckpt/model_func_mig.pth'
+        dg_ckpt_aig='./ckpt/model_func_aig.pth',
+        dg_ckpt_xag='./ckpt/model_func_xag.pth',
+        dg_ckpt_xmg='./ckpt/model_func_xmg.pth',
+        dg_ckpt_mig='./ckpt/model_func_mig.pth'
     )
 
     trainer = mixgate.top_trainer.TopTrainer(args, model, distributed=True)

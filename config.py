@@ -6,7 +6,7 @@ def get_parse_args():
 
     # basic experiment setting
     parser.add_argument('--exp_id', default='train')
-    parser.add_argument('--debug', type=int, default=0)
+    parser.add_argument('--debug', default=False, action='store_true')
     parser.add_argument('--load_model', default='',
                              help='path to pretrained model')
     parser.add_argument('--resume', action='store_true',
@@ -28,6 +28,8 @@ def get_parse_args():
                              help='disable when the input size is not fixed.')
     parser.add_argument('--random-seed', type=int, default=208, 
                              help='random seed')
+    parser.add_argument('--max_hop_once', type=int, default=128, 
+                             help='max hop to process in one time')
 
     # log
     parser.add_argument('--print_iter', type=int, default=0, 
@@ -63,7 +65,11 @@ def get_parse_args():
     parser.add_argument('--dim_hidden', type=int, default=128)
     parser.add_argument('--tf_head', type=int, default=8)
     parser.add_argument('--tf_layer', type=int, default=4)
-    parser.add_argument('--mask_ratio', type=float, default=0.03)
+    parser.add_argument('--hier_tf_head', type=int, default=8)
+    parser.add_argument('--hier_tf_layer', type=int, default=2)
+    parser.add_argument('--mask_ratio', type=float, default=0.00)
+    parser.add_argument('--linear_tf', action='store_true', default=False)
+    parser.add_argument('--hier_tf', action='store_true', default=False)
     
     args = parser.parse_args()
 
@@ -97,7 +103,8 @@ def get_parse_args():
         args.load_model = os.path.join(model_path, args.load_model)
 
     args.local_rank = 0
-
+    
+    assert (args.linear_tf and args.hier_tf) == False, 'Only one of linear_tf and hier_tf can be True'
 
     return args
 

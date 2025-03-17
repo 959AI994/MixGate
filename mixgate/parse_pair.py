@@ -19,6 +19,10 @@ from mixgate.utils.circuit_utils import get_fanin_fanout, read_file, add_node_in
 from mixgate.utils.dataset_utils import *
 from mixgate.utils.data_utils import construct_node_feature
 from mixgate.utils.dag_utils import return_order_info
+import mixgate.utils.circuit_utils as circuit_utils
+
+K_HOP = 7
+MAX_HOP_LENGTH = 511
 
 class NpzParser_Pair():
     '''
@@ -103,7 +107,7 @@ class NpzParser_Pair():
 
                 connect_label = None
                 connect_pair_index = None
-
+                
 
                 graph = parse_pyg_mlpgate(
                     x, edge_index, tt_dis, tt_pair_index, 
@@ -111,6 +115,62 @@ class NpzParser_Pair():
                 )
                 graph.num_nodes = len(x)
                 graph.batch = torch.zeros(len(graph.x), dtype=torch.long)
+                
+                # Hop / Stone 03.13
+                for modal in ['mig', 'aig', 'xmg', 'xag']:
+                    x = circuits[cir_name]["{}_x".format(modal)]
+                    edge_index = circuits[cir_name]["{}_edge_index".format(modal)]
+                    if edge_index.shape[0] != 2 and edge_index.shape[1] == 2:
+                        edge_index = edge_index.T
+                    elif edge_index.shape[0] == 2 and edge_index.shape[1] != 2:
+                        edge_index = edge_index
+                    else:
+                        continue
+                    forward_level, forward_index, backward_level, backward_index = return_order_info(edge_index, len(x))
+                    po_list = forward_index[backward_level == 0]
+                    max_level = forward_level.max().item()
+                    level_list = [[] for _ in range(max_level+1)]
+                    for idx, lev in enumerate(forward_level):
+                        level_list[lev.item()].append(idx)
+                    cur_node_level = K_HOP
+                    cur_hop_level = 0
+                    hop_list = np.zeros((0, MAX_HOP_LENGTH), dtype=int)
+                    hop_lev_list = []
+                    hop_node_list = []
+                    hop_length = []
+                    max_hop = 0
+                    while cur_node_level < max_level:
+                        for idx in level_list[cur_node_level]:
+                            hop_nodes = circuit_utils.get_hops(idx, edge_index, k_hop=K_HOP)
+                            hop_nodes_pad = [-1] * MAX_HOP_LENGTH
+                            hop_nodes_pad = np.array(hop_nodes_pad).reshape(1, MAX_HOP_LENGTH)
+                            hop_nodes_pad[0, :len(hop_nodes)] = hop_nodes
+                            hop_list = np.concatenate((hop_list, hop_nodes_pad), axis=0)
+                            hop_lev_list.append(cur_hop_level)
+                            hop_node_list.append(idx)
+                            hop_length.append(len(hop_nodes))
+                            if len(hop_node_list) > max_hop:
+                                max_hop = len(hop_node_list)
+                            
+                        cur_node_level += (K_HOP - 2)
+                        cur_hop_level += 1
+                    for po_idx in po_list:
+                        if po_idx not in hop_node_list:
+                            hop_nodes = circuit_utils.get_hops(po_idx, edge_index, k_hop=K_HOP)
+                            hop_nodes_pad = np.zeros((1, MAX_HOP_LENGTH), dtype=int)
+                            hop_nodes_pad[0, :len(hop_nodes)] = hop_nodes
+                            hop_list = np.concatenate((hop_list, hop_nodes_pad), axis=0)
+                            hop_lev_list.append(cur_hop_level)
+                            hop_node_list.append(po_idx)
+                            hop_length.append(len(hop_nodes))
+                            if len(hop_node_list) > max_hop:
+                                max_hop = len(hop_node_list)
+                                
+                    print('{} hop list length: {}/ max hop: {}'.format(modal, len(hop_list), max_hop))
+                    graph['{}_hop'.format(modal)] = torch.tensor(hop_list)
+                    graph['{}_hop_lev'.format(modal)] = torch.tensor(hop_lev_list)
+                    graph['{}_hop_node'.format(modal)] = torch.tensor(hop_node_list)
+                    graph['{}_hop_length'.format(modal)] = torch.tensor(hop_length)
 
                 #xmg:
                 xmg_edge_index =  torch.tensor(circuits[cir_name]["xmg_edge_index"], dtype=torch.long).t().contiguous()
@@ -124,10 +184,10 @@ class NpzParser_Pair():
                 graph.xmg_x = torch.tensor(circuits[cir_name]["xmg_x"])
                 graph.xmg_edge_index = torch.tensor(circuits[cir_name]["xmg_edge_index"], dtype=torch.long).t().contiguous()
                 graph.xmg_prob = torch.tensor(circuits[cir_name]["xmg_prob"])
-                graph.xmg_forward_level = torch.tensor(xmg_forward_level)
-                graph.xmg_forward_index = torch.tensor(xmg_forward_index)
-                graph.xmg_backward_level = torch.tensor(xmg_backward_level)
-                graph.xmg_backward_index = torch.tensor(xmg_backward_index)
+                graph.xmg_forward_level = xmg_forward_level
+                graph.xmg_forward_index = xmg_forward_index
+                graph.xmg_backward_level = xmg_backward_level
+                graph.xmg_backward_index = xmg_backward_index
                 graph.xmg_batch = torch.zeros(len(graph.xmg_x), dtype=torch.long)
                 graph.xmg_gate = torch.tensor(xmg_x[:, 1:2], dtype=torch.float)
 
@@ -143,10 +203,10 @@ class NpzParser_Pair():
                 graph.xag_x = torch.tensor(circuits[cir_name]["xag_x"])
                 graph.xag_edge_index = torch.tensor(circuits[cir_name]["xag_edge_index"], dtype=torch.long).t().contiguous()
                 graph.xag_prob = torch.tensor(circuits[cir_name]["xag_prob"])
-                graph.xag_forward_level = torch.tensor(xag_forward_level)
-                graph.xag_forward_index = torch.tensor(xag_forward_index)
-                graph.xag_backward_level = torch.tensor(xag_backward_level)
-                graph.xag_backward_index = torch.tensor(xag_backward_index)
+                graph.xag_forward_level = xag_forward_level
+                graph.xag_forward_index = xag_forward_index
+                graph.xag_backward_level = xag_backward_level
+                graph.xag_backward_index = xag_backward_index
                 graph.xag_batch = torch.zeros(len(graph.xag_x), dtype=torch.long)
                 graph.xag_gate = torch.tensor(circuits[cir_name]["xag_x"][:, 1:2], dtype=torch.float)
 

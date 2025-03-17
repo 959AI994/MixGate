@@ -47,8 +47,8 @@ class Model(nn.Module):
         # self.update_and_func = GRU(self.dim_hidden, self.dim_hidden)
         # self.update_not_strc = GRU(self.dim_hidden, self.dim_hidden)
         # self.update_not_func = GRU(self.dim_hidden, self.dim_hidden)
-        self.update_cell_strc = GRU(self.dim_hidden + 64, self.dim_hidden)
-        self.update_cell_func = GRU(self.dim_hidden + 64, self.dim_hidden)
+        self.update_cell_strc = GRU(self.dim_hidden + 3, self.dim_hidden)
+        self.update_cell_func = GRU(self.dim_hidden + 3, self.dim_hidden)
         # Readout 
         self.readout_prob = MLP(self.dim_hidden, self.dim_mlp, 1, num_layer=3, p_drop=0.2, norm_layer='batchnorm', act_layer='relu')
         self.connect_head = MLP(

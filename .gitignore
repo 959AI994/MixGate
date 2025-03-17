@@ -11,6 +11,7 @@ dist
 exp
 tmp
 data
+dataset
 
 tmp.py
 debug.py
