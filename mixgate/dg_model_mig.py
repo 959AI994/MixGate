@@ -165,21 +165,6 @@ class Model(nn.Module):
                     _, hf_maj = self.update_maj_func(maj_msg.unsqueeze(0), hf_maj.unsqueeze(0))
                     hf[l_maj_node, :] = hf_maj.squeeze(0)
 
-                # # PI Gate
-                # l_pi_node = G.forward_index[layer_mask & pi_mask]
-                # if l_pi_node.size(0) > 0:
-                #     pi_edge_index, pi_edge_attr = subgraph(l_pi_node, edge_index, dim=1)
-                #     msg = self.aggr_pi_strc(hs, pi_edge_index, pi_edge_attr)
-                #     pi_msg = torch.index_select(msg, dim=0, index=l_pi_node)
-                #     hs_pi = torch.index_select(hs, dim=0, index=l_pi_node)
-                #     _, hs_pi = self.update_pi_strc(pi_msg.unsqueeze(0), hs_pi.unsqueeze(0))
-                #     hs[l_pi_node, :] = hs_pi.squeeze(0)
-                #     msg = self.aggr_pi_func(node_state, pi_edge_index, pi_edge_attr)
-                #     pi_msg = torch.index_select(msg, dim=0, index=l_pi_node)
-                #     hf_pi = torch.index_select(hf, dim=0, index=l_pi_node)
-                #     _, hf_pi = self.update_pi_func(pi_msg.unsqueeze(0), hf_pi.unsqueeze(0))
-                #     hf[l_pi_node, :] = hf_pi.squeeze(0)
-
                 # 更新节点状态
                 node_state = torch.cat([hs, hf], dim=-1)
 
