@@ -104,7 +104,7 @@ class TopModel(nn.Module):
         
         mask_indices = torch.unique(mask_indices)
         masked_tokens = tokens.clone()
-        masked_tokens[mask_indices, self.args.dim_hidden:] = self.mask_token
+        masked_tokens[mask_indices, 2*self.args.dim_hidden:] = self.mask_token
         return masked_tokens, mask_indices
 
     def forward(self, G):
@@ -117,29 +117,29 @@ class TopModel(nn.Module):
         aig_hs = aig_hs.detach()
         aig_hf = aig_hf.detach()
         aig_t  = aig_t.detach()
-        aig_tokens = torch.cat([aig_hs,aig_hf], dim=1)
-        # aig_tokens = torch.cat([aig_hs,aig_t,aig_hf], dim=1)
+        # aig_tokens = torch.cat([aig_hs,aig_hf], dim=1)
+        aig_tokens = torch.cat([aig_hs,aig_t,aig_hf], dim=1)
 
         mig_hs,mig_t, mig_hf = self.deepgate_mig(G)
         mig_hs = mig_hs.detach()
         mig_hf = mig_hf.detach()
         mig_t  = mig_t.detach()
-        mig_tokens = torch.cat([mig_hs,mig_hf], dim=1)
-        # mig_tokens = torch.cat([mig_hs,mig_t,mig_hf], dim=1)
+        # mig_tokens = torch.cat([mig_hs,mig_hf], dim=1)
+        mig_tokens = torch.cat([mig_hs,mig_t,mig_hf], dim=1)
         
         xmg_hs, xmg_t,xmg_hf = self.deepgate_xmg(G)
         xmg_hs = xmg_hs.detach()
         xmg_hf = xmg_hf.detach()
         xmg_t = xmg_t.detach()
-        xmg_tokens = torch.cat([xmg_hs,xmg_hf], dim=1)
-        # xmg_tokens = torch.cat([xmg_hs,xmg_t,xmg_hf], dim=1)
+        # xmg_tokens = torch.cat([xmg_hs,xmg_hf], dim=1)
+        xmg_tokens = torch.cat([xmg_hs,xmg_t,xmg_hf], dim=1)
         
         xag_hs,xag_t, xag_hf = self.deepgate_xag(G)
         xag_hs = xag_hs.detach()
         xag_hf = xag_hf.detach()
-        xmg_t = xmg_t.detach()
-        xag_tokens = torch.cat([xag_hs,xag_hf], dim=1)
-        # xag_tokens = torch.cat([xag_hs,xag_t, xag_hf], dim=1)
+        xag_t = xmg_t.detach()
+        # xag_tokens = torch.cat([xag_hs,xag_hf], dim=1)
+        xag_tokens = torch.cat([xag_hs,xag_t, xag_hf], dim=1)
         
         # 模态列表
         modalities = ['aig', 'mig', 'xmg', 'xag']
@@ -197,11 +197,8 @@ class TopModel(nn.Module):
                 batch_pred_masked_tokens = batch_predicted_tokens[:batch_masked_tokens.shape[0], :]
                 # 收集预测的被掩码的 token
                 mcm_predicted_tokens = torch.cat([mcm_predicted_tokens, batch_pred_masked_tokens], dim=0)
-
-            # 获取其他模态的 tokens
-            other_tokens = torch.cat([tokens[0] for modality, tokens in tokens_dict.items() if modality != selected_modality], dim=0)
             
-        hf_tokens = mcm_predicted_tokens[:, self.args.dim_hidden:]
+        hf_tokens = mcm_predicted_tokens[:, 2*self.args.dim_hidden:]
         masked_prob = encoder.pred_prob(hf_tokens)
 
         # 获取每个模态的预测概率
