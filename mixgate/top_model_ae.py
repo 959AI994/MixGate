@@ -100,7 +100,6 @@ class TopModel(nn.Module):
         assert isinstance(self.shared_layer, nn.Module), "共享层初始化失败"
         
 
-    
     def mask_tokens(self, G, tokens, mask_ratio=0.05, k_hop=4): 
         """
         Randomly mask a ratio of tokens and extract its k_hop
