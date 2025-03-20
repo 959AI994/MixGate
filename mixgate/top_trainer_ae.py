@@ -249,7 +249,7 @@ class TopTrainer():
                             'func_loss': loss_status['func_loss']
                         } 
                         # TODO:选择模型中的参考层（例如编码器?）
-                        reference_layer = self.model.encoder
+                        reference_layer = self.model.shared_layer 
                         # 通过Balancer计算总损失
                         total_loss = self.balancer.backward(
                             losses=losses_dict,

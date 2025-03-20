@@ -69,6 +69,10 @@ class TopModel(nn.Module):
         
         # Token masking
         self.mask_token = nn.Parameter(torch.randn(1, args.dim_hidden))  # learnable mask token
+
+        # 显式定义整个Transformer作为为共享层
+        self.shared_layer = self.mask_tf  
+
     
     def mask_tokens(self, G, tokens, mask_ratio=0.05, k_hop=4): 
         """
