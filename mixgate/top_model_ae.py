@@ -70,8 +70,35 @@ class TopModel(nn.Module):
         # Token masking
         self.mask_token = nn.Parameter(torch.randn(1, args.dim_hidden))  # learnable mask token
 
-        # 显式定义整个Transformer作为为共享层
-        self.shared_layer = self.mask_tf  
+       # 定义共享层 -------------------------------------------------
+        self._init_shared_layer()
+
+    def _init_shared_layer(self):
+        """在初始化时确定共享层"""
+        if isinstance(self.mask_tf, nn.TransformerEncoder):
+            # 标准Transformer结构
+            last_layer = self.mask_tf.layers[-1]
+            self.shared_layer = last_layer.linear2  # FFN的第二层线性层
+            print(f"标准Transformer架构 | 共享层: {type(self.shared_layer).__name__}")
+            
+        elif hasattr(self.mask_tf, 'hier_layers'):
+            # HierarchicalTransformer自定义结构
+            self.shared_layer = self.mask_tf.hier_tf_layers[-1].ffn[-1]
+            print(f"层次Transformer架构 | 共享层: {type(self.shared_layer).__name__}")
+            
+        elif hasattr(self.mask_tf, 'tf_layers'):
+            # Linformer结构
+            self.shared_layer = self.mask_tf.tf_layers[-1].ffn[-1]
+            print(f"线性Transformer架构 | 共享层: {type(self.shared_layer).__name__}")
+            
+        else:
+            # 回退到整个Transformer作为共享层
+            self.shared_layer = self.mask_tf
+            print(f"通用架构 | 共享层: {type(self.shared_layer).__name__}")
+
+        # 添加安全校验
+        assert isinstance(self.shared_layer, nn.Module), "共享层初始化失败"
+        
 
     
     def mask_tokens(self, G, tokens, mask_ratio=0.05, k_hop=4): 

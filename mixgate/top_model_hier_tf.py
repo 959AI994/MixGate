@@ -71,6 +71,34 @@ class TopModel(nn.Module):
         # Token masking
         self.mask_token = nn.Parameter(torch.randn(1, args.dim_hidden))  # learnable mask token
     
+            # 定义共享层 -------------------------------------------------
+        self._init_shared_layer()
+
+    def _init_shared_layer(self):
+        """初始化共享层"""
+        if isinstance(self.mask_tf, nn.TransformerEncoder):
+            # 标准Transformer结构
+            last_layer = self.mask_tf.layers[-1]
+            self.shared_layer = last_layer.linear2  # FFN的第二层线性层
+            print(f"[Arch] Standard Transformer | Shared: {self.shared_layer.__class__.__name__}")
+            
+        elif hasattr(self.mask_tf, 'hier_layers'):  # HierarchicalTransformer hier_tf_layers属性
+            # 层次化Transformer
+            self.shared_layer = self.mask_tf.hier_tf_layers[-1].ffn[-1]
+            print(f"[Arch] Hierarchical Transformer | Shared: {self.shared_layer.__class__.__name__}")
+            
+        elif hasattr(self.mask_tf, 'tf_layers'):  # Linformer结构
+            self.shared_layer = self.mask_tf.tf_layers[-1].ffn[-1]
+            print(f"[Arch] Linformer | Shared: {self.shared_layer.__class__.__name__}")
+            
+        else:  # 未知结构回退
+            self.shared_layer = self.mask_tf
+            print(f"[Arch] Fallback | Shared: {self.shared_layer.__class__.__name__}")
+
+        # 添加参数校验
+        if not hasattr(self.shared_layer, 'weight'):
+            print("[WARN] 共享层缺少可训练参数，可能影响Balancer效果")
+
     def mask_tokens(self, G, tokens, mask_ratio=0.05, k_hop=4): 
         """
         Randomly mask a ratio of tokens and extract its k_hop
