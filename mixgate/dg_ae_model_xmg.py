@@ -12,6 +12,7 @@ from .arch.mlp_aggr import MlpAggr
 from .arch.tfmlp import TFMlpAggr
 from .arch.gcn_conv import AggConv
 from torch_geometric.utils import negative_sampling, remove_self_loops, add_self_loops
+from .digae_layer import DirectedInnerProductDecoder  
 
 EPS        = 1e-15
 MAX_LOGSTD = 10
@@ -30,6 +31,9 @@ class Model(nn.Module):
         
         # 结构编码器 (来自 DirectedGAE)
         self.xmg_struct_encoder = xmg_struct_encoder
+        self.decoder = DirectedInnerProductDecoder()
+        self.hs_linear = nn.Linear(dim_hidden * 2, dim_hidden)
+        self.hs_decompose = nn.Linear(dim_hidden, dim_hidden * 2)
 
         # Configuration
         self.num_rounds = num_rounds
@@ -42,7 +46,7 @@ class Model(nn.Module):
 
         # Function part: Aggregation inputs as [structure, function]
         self.aggr_and_func = TFMlpAggr(self.dim_hidden * 2, self.dim_hidden)
-        self.aggr_not_func = TFMlpAggr(self.dim_hidden * 1, self.dim_hidden)
+        self.aggr_not_func = TFMlpAggr(self.dim_hidden * 2, self.dim_hidden)
         self.aggr_xor_func = TFMlpAggr(self.dim_hidden * 2, self.dim_hidden)
         self.aggr_maj_func = TFMlpAggr(self.dim_hidden * 2, self.dim_hidden)
         self.aggr_or_func = TFMlpAggr(self.dim_hidden * 2, self.dim_hidden)
@@ -64,12 +68,14 @@ class Model(nn.Module):
         
         # 使用结构编码器获得结构编码 s 和 t
         x, edge_index = G.xmg_x, G.xmg_edge_index
-        s, t = self.xmg_struct_encoder(x, x, edge_index)  # s 为结构信息，t 可用于后续重构
+        one_hot = torch.nn.functional.one_hot(G.xmg_x[:, 1].to(int), num_classes=6).to(device)
+        s, t = self.xmg_struct_encoder(one_hot, one_hot, edge_index)  # s 为结构信息，t 可用于后续重构
 
         # 初始化功能隐藏状态 hf (结构信息 s 不再更新)
         hf = torch.zeros(num_nodes, self.dim_hidden, device=device)
         # 初始节点状态为结构信息和功能状态的拼接
-        node_state = torch.cat([s, hf], dim=-1)
+        hs = self.hs_linear(torch.cat([s, t], dim=-1))
+        node_state = torch.cat([hs, hf], dim=-1)
 
         # 获取每种门的掩码
         not_mask = G.xmg_gate.squeeze(1) == 2  # NOT 门
@@ -87,12 +93,6 @@ class Model(nn.Module):
                 l_and_node = G.xmg_forward_index[layer_mask & and_mask]
                 if l_and_node.size(0) > 0:
                     and_edge_index, and_edge_attr = subgraph(l_and_node, edge_index, dim=1)
-                    # 更新结构隐藏状态
-                    msg = self.aggr_and_func(s, and_edge_index, and_edge_attr)
-                    and_msg = torch.index_select(msg, dim=0, index=l_and_node)
-                    s_and = torch.index_select(s, dim=0, index=l_and_node)
-                    _, s_and = self.update_and_func(and_msg.unsqueeze(0), s_and.unsqueeze(0))
-                    s[l_and_node, :] = s_and.squeeze(0)
                     # 更新功能隐藏状态
                     msg = self.aggr_and_func(node_state, and_edge_index, and_edge_attr)
                     and_msg = torch.index_select(msg, dim=0, index=l_and_node)
@@ -141,9 +141,9 @@ class Model(nn.Module):
                     hf[l_or_node, :] = hf_or.squeeze(0)
 
                 # 更新节点状态
-                node_state = torch.cat([s, hf], dim=-1)
+                node_state = torch.cat([hs, hf], dim=-1)
 
-        return s, t, hf
+        return hs, hf
 
     def pred_prob(self, hf):
         prob = self.readout_prob(hf)
@@ -178,7 +178,8 @@ class Model(nn.Module):
             pretrained_model_path = os.path.join(os.path.dirname(__file__), 'pretrained', 'model.pth')
         self.load(pretrained_model_path)
 
-    def recon_loss(self, s, t, pos_edge_index, neg_edge_index=None):
+    def recon_loss(self, hs, pos_edge_index, neg_edge_index=None):
+        s, t = self.hs_decompose(hs).chunk(2, dim=-1)
         # 对正边计算重构概率
         pos_pred = self.decoder(s, t, pos_edge_index, sigmoid=True)
         pos_pred_bin = (pos_pred > 0.5).float()

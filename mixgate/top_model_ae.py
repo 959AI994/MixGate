@@ -20,6 +20,7 @@ from .dg_ae_model_xag import Model as DeepGate_Xag
 from .dg_ae_model_aig import Model as DeepGate_Aig
 from .hier_tf import HierarchicalTransformer
 import numpy as np
+from .digae_layer import DirectMultiGCNEncoder  
 
 from linformer import Linformer
 
@@ -37,16 +38,36 @@ class TopModel(nn.Module):
         self.mask_ratio = args.mask_ratio
         
         # DeepGate for AIG, MIG, xmg, XAG
-        self.deepgate_aig = DeepGate_Aig(dim_hidden=args.dim_hidden)
+        self.aig_struct_encoder = DirectMultiGCNEncoder(
+            dim_hidden=args.dim_hidden, dim_feature=3, enable_reverse=True, 
+            s_rounds=args.s_rounds, t_rounds=args.t_rounds, 
+            layernorm=args.layernorm
+        )
+        self.deepgate_aig = DeepGate_Aig(self.aig_struct_encoder, dim_hidden=args.dim_hidden)
         self.deepgate_aig.load(dg_ckpt_aig)
         
-        self.deepgate_mig = DeepGate_Mig(dim_hidden=args.dim_hidden)
+        self.mig_struct_encoder = DirectMultiGCNEncoder(
+            dim_hidden=args.dim_hidden, dim_feature=5, enable_reverse=True, 
+            s_rounds=args.s_rounds, t_rounds=args.t_rounds, 
+            layernorm=args.layernorm
+        )
+        self.deepgate_mig = DeepGate_Mig(self.mig_struct_encoder, dim_hidden=args.dim_hidden)
         self.deepgate_mig.load(dg_ckpt_mig)
         
-        self.deepgate_xmg = DeepGate_Xmg(dim_hidden=args.dim_hidden)
+        self.xmg_struct_encoder = DirectMultiGCNEncoder(
+            dim_hidden=args.dim_hidden, dim_feature=6, enable_reverse=True, 
+            s_rounds=args.s_rounds, t_rounds=args.t_rounds, 
+            layernorm=args.layernorm
+        )
+        self.deepgate_xmg = DeepGate_Xmg(self.xmg_struct_encoder, dim_hidden=args.dim_hidden)
         self.deepgate_xmg.load(dg_ckpt_xmg)
         
-        self.deepgate_xag = DeepGate_Xag(dim_hidden=args.dim_hidden)
+        self.xag_struct_encoder = DirectMultiGCNEncoder(
+            dim_hidden=args.dim_hidden, dim_feature=6, enable_reverse=True, 
+            s_rounds=args.s_rounds, t_rounds=args.t_rounds, 
+            layernorm=args.layernorm
+        )
+        self.deepgate_xag = DeepGate_Xag(self.xag_struct_encoder, dim_hidden=args.dim_hidden)
         self.deepgate_xag.load(dg_ckpt_xag)
 
         # # 关键：冻结参数
@@ -143,33 +164,29 @@ class TopModel(nn.Module):
         mcm_predicted_tokens = torch.zeros(0, self.args.dim_hidden * 2).to(self.device)
 
         # Get tokens from AIG, MIG, xmg, XAG
-        aig_hs, aig_t,aig_hf = self.deepgate_aig(G)
+        aig_hs, aig_hf = self.deepgate_aig(G)
         aig_hs = aig_hs.detach()
         aig_hf = aig_hf.detach()
-        aig_t  = aig_t.detach()
         # aig_tokens = torch.cat([aig_hs,aig_hf], dim=1)
-        aig_tokens = torch.cat([aig_hs,aig_t,aig_hf], dim=1)
+        aig_tokens = torch.cat([aig_hs,aig_hf], dim=1)
 
-        mig_hs,mig_t, mig_hf = self.deepgate_mig(G)
+        mig_hs, mig_hf = self.deepgate_mig(G)
         mig_hs = mig_hs.detach()
         mig_hf = mig_hf.detach()
-        mig_t  = mig_t.detach()
         # mig_tokens = torch.cat([mig_hs,mig_hf], dim=1)
-        mig_tokens = torch.cat([mig_hs,mig_t,mig_hf], dim=1)
+        mig_tokens = torch.cat([mig_hs,mig_hf], dim=1)
         
-        xmg_hs, xmg_t,xmg_hf = self.deepgate_xmg(G)
+        xmg_hs, xmg_hf = self.deepgate_xmg(G)
         xmg_hs = xmg_hs.detach()
         xmg_hf = xmg_hf.detach()
-        xmg_t = xmg_t.detach()
         # xmg_tokens = torch.cat([xmg_hs,xmg_hf], dim=1)
-        xmg_tokens = torch.cat([xmg_hs,xmg_t,xmg_hf], dim=1)
+        xmg_tokens = torch.cat([xmg_hs, xmg_hf], dim=1)
         
-        xag_hs,xag_t, xag_hf = self.deepgate_xag(G)
+        xag_hs, xag_hf = self.deepgate_xag(G)
         xag_hs = xag_hs.detach()
         xag_hf = xag_hf.detach()
-        xag_t = xmg_t.detach()
         # xag_tokens = torch.cat([xag_hs,xag_hf], dim=1)
-        xag_tokens = torch.cat([xag_hs,xag_t, xag_hf], dim=1)
+        xag_tokens = torch.cat([xag_hs, xag_hf], dim=1)
         
         # 模态列表
         modalities = ['aig', 'mig', 'xmg', 'xag']
@@ -228,7 +245,7 @@ class TopModel(nn.Module):
                 # 收集预测的被掩码的 token
                 mcm_predicted_tokens = torch.cat([mcm_predicted_tokens, batch_pred_masked_tokens], dim=0)
             
-        hf_tokens = mcm_predicted_tokens[:, 2*self.args.dim_hidden:]
+        hf_tokens = mcm_predicted_tokens[:, self.args.dim_hidden:]
         masked_prob = encoder.pred_prob(hf_tokens)
 
         # 获取每个模态的预测概率
