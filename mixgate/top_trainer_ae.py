@@ -9,6 +9,8 @@ import time
 from progress.bar import Bar
 from torch_geometric.loader import DataLoader
 
+from mixgate.gradnorm import Balancer
+
 from .arch.mlp import MLP
 from .utils.utils import zero_normalization, AverageMeter, get_function_acc
 from .utils.logger import Logger
@@ -28,6 +30,13 @@ class TopTrainer():
                  distributed = False
                  ):
         super(TopTrainer, self).__init__()
+
+        # 将权重列表转为字典格式
+        self.loss_weights = {
+            'prob_loss': loss_weight[0],
+            'func_loss': loss_weight[2]
+        }
+
         # Config
         self.args = args
         self.emb_dim = args.dim_hidden
@@ -75,14 +84,32 @@ class TopTrainer():
         self.model = model.to(self.device)
         self.model_epoch = 0
         
+        # 初始化Balancer
+        self.balancer = Balancer(
+            weights=self.loss_weights,
+            rescale_grads=True,
+            total_norm=10.0,
+            ema_decay=0.999,
+            monitor=True
+        ).to(self.device)
+        
         # Logger
         if self.local_rank == 0:
             self.logger = Logger(self.log_path)
         
     def set_training_args(self, loss_weight=[], lr=-1, lr_step=-1, device='null'):
         if len(loss_weight) == 3 and loss_weight != self.loss_weight:
+            new_weights = {
+            'prob_loss': loss_weight[0],
+            'func_loss': loss_weight[2]
+            }
+            if new_weights != self.loss_weights:
+                print('[INFO] Update loss weights:', new_weights)
+                self.loss_weights = new_weights
+                self.balancer.weights = new_weights
             print('[INFO] Update loss weight from {} to {}'.format(self.loss_weight, loss_weight))
             self.loss_weight = loss_weight
+
         if lr > 0 and lr != self.lr:
             print('[INFO] Update learning rate from {} to {}'.format(self.lr, lr))
             self.lr = lr
@@ -137,7 +164,7 @@ class TopTrainer():
         # Task 1: Probability Prediction 
         prob_loss = self.reg_loss(pm_prob, batch['prob'].unsqueeze(1))
         
-        # Task 2: Mask PM Circuit Modeling  
+        # Task 2: Mask Circuit Modeling  
         #mcm_loss = self.reg_loss(mcm_pm_tokens[mask_indices], pm_tokens[mask_indices])
         
         # Task 3: Functional Similarity
@@ -216,9 +243,35 @@ class TopTrainer():
                     loss /= sum(self.loss_weight)
                     loss = loss.mean()
                     if phase == 'train':
+                        # 使用Balancer进行动态权重调整
+                        losses_dict = {
+                            'prob_loss': loss_status['prob_loss'],
+                            'func_loss': loss_status['func_loss']
+                        } 
+                        # TODO:选择模型中的参考层（例如编码器?）
+                        reference_layer = self.model.encoder
+                        # 通过Balancer计算总损失
+                        total_loss = self.balancer.backward(
+                            losses=losses_dict,
+                            layer=reference_layer
+                        )
+
                         self.optimizer.zero_grad()
-                        loss.backward()
+                        # loss.backward()
+                        total_loss.backward()
                         self.optimizer.step()
+                    else:
+                    # 验证阶段使用固定权重
+                        total_loss = (
+                            loss_status['prob_loss'] * self.loss_weights['prob_loss'] +
+                            loss_status['func_loss'] * self.loss_weights['func_loss']
+                        )
+
+                     # 记录Balancer监控指标
+                    if self.local_rank == 0 and phase == 'train':
+                        metrics = self.balancer.metrics
+                        for k, v in metrics.items():
+                            self.logger.write(f"Balancer| {k}: {v:.4f}\n")
                     # Print and save log
                     batch_time.update(time.time() - time_stamp)
                     prob_loss_stats.update(loss_status['prob_loss'].item())
