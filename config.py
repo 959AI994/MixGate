@@ -70,6 +70,10 @@ def get_parse_args():
     parser.add_argument('--mask_ratio', type=float, default=0.00)
     parser.add_argument('--linear_tf', action='store_true', default=False)
     parser.add_argument('--hier_tf', action='store_true', default=False)
+    parser.add_argument('--s_rounds', type=int, default=4, help='Number of rounds for source node')
+    parser.add_argument('--t_rounds', type=int, default=4, help='Number of rounds for target node')
+    parser.add_argument('--layernorm', action='store_true', help='Enable layernorm')
+    
     
     args = parser.parse_args()
 

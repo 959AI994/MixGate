@@ -6,16 +6,18 @@ import mixgate
 import torch
 import os
 from config import get_parse_args
-import mixgate.top_model
+import mixgate.top_model as top_model
+import mixgate.top_model_hier_tf as top_model_hier_tf
+import mixgate.top_model_ae as top_model_ae
 import mixgate.top_trainer 
 import torch.distributed as dist
 
-DATA_DIR = './data/dg_pair'
+DATA_DIR = './data'
 
 if __name__ == '__main__':
     args = get_parse_args()
     # here,we need to build some npz formate including mig,xmg,xag,aig fusion graph
-    circuit_path ='/home/xqgrp/wangjingxin/datasets/mixgate_data/merged_all1500.npz'
+    circuit_path ='./data/merged_all1500.npz'
     num_epochs = args.num_epochs
     
     print('[INFO] Parse Dataset')
@@ -25,7 +27,7 @@ if __name__ == '__main__':
     train_dataset, val_dataset = dataset.get_dataset()
 
     print('[INFO] Create Model and Trainer')
-    model = mixgate.top_model.TopModel(
+    model = top_model_ae.TopModel(
         args, 
         # dc_ckpt='./ckpt/dc.pth', 
         dg_ckpt_aig='./ckpt/model_func_aig.pth',
