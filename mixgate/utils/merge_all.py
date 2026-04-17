@@ -1,16 +1,36 @@
 import numpy as np
 import os
 
-# Input tuples (graphs.npz, labels.npz, output)
+# Anonymized layout for double-blind artifact; override with MIXGATE_DATA_ROOT.
+_DATA_ROOT = os.environ.get('MIXGATE_DATA_ROOT', './data')
+
+# (graphs.npz, labels.npz, output) per modality
 data_paths = [
-    ('/home/jwt/DeepGate2_mig/mig_data/train/graphs.npz', '/home/jwt/DeepGate2_mig/mig_data/train/labels.npz', '/home/jwt/DeepGate2_mig/mig_data/train/graphs1.npz'),
-    ('/home/jwt/DeepGate2_mig/xmg_data/train/graphs.npz', '/home/jwt/DeepGate2_mig/xmg_data/train/labels.npz', '/home/jwt/DeepGate2_mig/xmg_data/train/graphs1.npz'),
-    ('/home/jwt/DeepGate2_mig/xag_data/train/graphs.npz', '/home/jwt/DeepGate2_mig/xag_data/train/labels.npz', '/home/jwt/DeepGate2_mig/xag_data/train/graphs1.npz'),
+    (
+        os.path.join(_DATA_ROOT, 'mig', 'train', 'graphs.npz'),
+        os.path.join(_DATA_ROOT, 'mig', 'train', 'labels.npz'),
+        os.path.join(_DATA_ROOT, 'mig', 'train', 'graphs1.npz'),
+    ),
+    (
+        os.path.join(_DATA_ROOT, 'xmg', 'train', 'graphs.npz'),
+        os.path.join(_DATA_ROOT, 'xmg', 'train', 'labels.npz'),
+        os.path.join(_DATA_ROOT, 'xmg', 'train', 'graphs1.npz'),
+    ),
+    (
+        os.path.join(_DATA_ROOT, 'xag', 'train', 'graphs.npz'),
+        os.path.join(_DATA_ROOT, 'xag', 'train', 'labels.npz'),
+        os.path.join(_DATA_ROOT, 'xag', 'train', 'graphs1.npz'),
+    ),
 ]
 
-output_paths = ['/home/jwt/DeepGate2_mig/mig_data/train/graphs1.npz', '/home/jwt/DeepGate2_mig/xmg_data/train/graphs1.npz', '/home/jwt/DeepGate2_mig/xag_data/train/graphs1.npz', '/home/jwt/1/aig_npz/graphs.npz']
-final_output_path = '/home/jwt/1/merged_all1.npz'
-# aiggraph_path = ['/home/jwt/1/aig_npz/aig_graphs.npz']
+output_paths = [
+    os.path.join(_DATA_ROOT, 'mig', 'train', 'graphs1.npz'),
+    os.path.join(_DATA_ROOT, 'xmg', 'train', 'graphs1.npz'),
+    os.path.join(_DATA_ROOT, 'xag', 'train', 'graphs1.npz'),
+    os.path.join(_DATA_ROOT, 'aig_npz', 'graphs.npz'),
+]
+final_output_path = os.path.join(_DATA_ROOT, 'merged_all1.npz')
+# aiggraph_path = [os.path.join(_DATA_ROOT, 'aig_npz', 'aig_graphs.npz')]
 
 def merge_graphs_and_labels(graphs_path, labels_path, output_path):
     # Load graphs.npz

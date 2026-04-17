@@ -8,7 +8,7 @@ import os
 from config import get_parse_args
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
-DATA_DIR = '/home/xqgrp/wangjingxin/datasets/mixgate_data'
+DATA_DIR = os.environ.get('MIXGATE_DATA_DIR', './data')
 
 if __name__ == '__main__':
     args = get_parse_args()

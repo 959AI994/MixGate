@@ -1,11 +1,26 @@
 import numpy as np
 import os
 
-# Input (graphs.npz, labels.npz, output) tuples
+# Anonymized layout for double-blind artifact; override with MIXGATE_DATA_ROOT.
+_DATA_ROOT = os.environ.get('MIXGATE_DATA_ROOT', './data')
+
+# (graphs.npz, labels.npz, output) tuples
 data_paths = [
-    ('/home/jwt/1/mig_npz/graphs.npz', '/home/jwt/1/mig_npz/labels.npz', '/home/jwt/DeepMap_Dataset/graph_label_npz/merged_mig_graphs.npz'),
-    ('/home/jwt/1/xmg_npz/graphs.npz', '/home/jwt/1/xmg_npz/labels.npz', '/home/jwt/DeepMap_Dataset/graph_label_npz/merged_xmg_graphs.npz'),
-    ('/home/jwt/1/xag_npz/graphs.npz', '/home/jwt/1/xag_npz/labels.npz', '/home/jwt/DeepMap_Dataset/graph_label_npz/merged_xag_graphs.npz'),
+    (
+        os.path.join(_DATA_ROOT, 'mig_npz', 'graphs.npz'),
+        os.path.join(_DATA_ROOT, 'mig_npz', 'labels.npz'),
+        os.path.join(_DATA_ROOT, 'out', 'merged_mig_graphs.npz'),
+    ),
+    (
+        os.path.join(_DATA_ROOT, 'xmg_npz', 'graphs.npz'),
+        os.path.join(_DATA_ROOT, 'xmg_npz', 'labels.npz'),
+        os.path.join(_DATA_ROOT, 'out', 'merged_xmg_graphs.npz'),
+    ),
+    (
+        os.path.join(_DATA_ROOT, 'xag_npz', 'graphs.npz'),
+        os.path.join(_DATA_ROOT, 'xag_npz', 'labels.npz'),
+        os.path.join(_DATA_ROOT, 'out', 'merged_xag_graphs.npz'),
+    ),
 ]
 
 def merge_graphs_and_labels(graphs_path, labels_path, output_path):

@@ -12,7 +12,7 @@ import os
 from config import get_parse_args
 from mixgate.dc_trainer import Trainer
 
-DATA_DIR = '/home/xqgrp/wangjingxin/datasets/mixgate_data'
+DATA_DIR = os.environ.get('MIXGATE_DATA_DIR', './data')
 
 if __name__ == '__main__':
     args = get_parse_args()

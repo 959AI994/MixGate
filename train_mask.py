@@ -16,12 +16,11 @@ DATA_DIR = './data'
 if __name__ == '__main__':
     args = get_parse_args()
 
-    # circuit_path ='/home/lcm/data/merged_all.npz'
-    # circuit_path ='/home/lcm/wangjingxin/datasets/mixgate_data/merged_all150.npz'
-    # circuit_path ='/home/lcm/wangjingxin/datasets/mixgate_data/merged_mixgate_consistency.npz'
-    # circuit_path ='/gz-data/dchacker_1/merge_all1%15000.npz'
-    circuit_path ='/root/pythonproject/datasets/merged_mixgate1%1500.npz'
-    # circuit_path ='/home/lcm/wangjingxin/datasets/mixgate_data/merged_mixgate1508_consistency.npz'
+    # Default: merged circuits .npz under ./data (override with env for your setup)
+    circuit_path = os.environ.get(
+        'MIXGATE_CIRCUIT_NPZ',
+        os.path.join(DATA_DIR, 'merged_mixgate1%1500.npz'),
+    )
     num_epochs = args.num_epochs
     
     print('[INFO] Parse Dataset')
