@@ -268,30 +268,30 @@ class NpzParser_Pair():
                 graph.mig_gate = torch.tensor(circuits[cir_name]["mig_x"][:, 1:2], dtype=torch.float)
                 graph.name = cir_name
 
-                # 处理等价节点对标签（只处理AIG到其他视图的等价对）
-                # 假设等价对数据存储在circuits[cir_name]["equivalent_pairs"]中
+                # Equivalent-node-pair labels (AIG to other views only)
+                # Expected at circuits[cir_name]["equivalent_pairs"] if enabled
                 # if "equivalent_pairs" in circuits[cir_name]:
                 #     equivalent_pairs = circuits[cir_name]["equivalent_pairs"]
                     
-                #     # 只处理AIG到其他视图的等价对
+                #     # AIG-to-other-view pairs only
                 #     aig_to_other_pairs = ['aig_to_xmg', 'aig_to_xag', 'aig_to_mig']
                     
                 #     for view_pair in aig_to_other_pairs:
                 #         if view_pair in equivalent_pairs and len(equivalent_pairs[view_pair]) > 0:
                 #             pairs = equivalent_pairs[view_pair]
                             
-                #             # 创建等价对索引
+                #             # Build pair index tensors
                 #             pair_indices = torch.tensor(pairs, dtype=torch.long)  # shape: [num_pairs, 2]
                             
-                #             # 存储到graph中
+                #             # Store on graph
                 #             graph[f'{view_pair}_equivalent_indices'] = pair_indices
                 #             graph[f'{view_pair}_num_equivalent_pairs'] = torch.tensor(len(pairs), dtype=torch.long)
                 #         else:
-                #             # 如果没有等价对，创建空的tensor
+                #             # Empty tensor if no pairs
                 #             graph[f'{view_pair}_equivalent_indices'] = torch.empty((0, 2), dtype=torch.long)
                 #             graph[f'{view_pair}_num_equivalent_pairs'] = torch.tensor(0, dtype=torch.long)
                 # else:
-                #     # 如果没有等价对数据，为AIG到其他视图的等价对创建空的tensor
+                #     # No equivalent-pair data: use empty tensors for AIG-other pairs
                 #     aig_to_other_pairs = ['aig_to_xmg', 'aig_to_xag', 'aig_to_mig']
                 #     for view_pair in aig_to_other_pairs:
                 #         graph[f'{view_pair}_equivalent_indices'] = torch.empty((0, 2), dtype=torch.long)

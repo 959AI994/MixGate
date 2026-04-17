@@ -81,13 +81,13 @@ class HierarchicalTransformer(nn.Module):
         device = next(self.parameters()).device
         mcm_predicted_tokens = torch.zeros(0, self.dim * 2).to(device)
         for batch_id in range(g['batch'].max().item()+1):
-            other_modal_tokens = torch.zeros((0, self.dim * 2)).to(device) # 未被mask的modal tokens
+            other_modal_tokens = torch.zeros((0, self.dim * 2)).to(device)  # unmasked modality tokens
             for modal_k, modal in enumerate(self.modalities):
-                # 如果被mask的modal，直接跳过
+                # Skip the masked modality
                 if modal == masked_modal:
                     batch_masked_tokens = masked_tokens[g['{}_batch'.format(modal)] == batch_id]
                     continue
-                # 选择当前批次的hop
+                # Hops for this batch item
                 select_hop = (g['{}_batch'.format(modal)][g['{}_hop_node'.format(modal)]] == batch_id)
                 hop_list = g['{}_hop'.format(modal)][select_hop]
                 hop_lev_list = g['{}_hop_lev'.format(modal)][select_hop]
@@ -95,7 +95,7 @@ class HierarchicalTransformer(nn.Module):
                 if hop_lev_list.numel() > 0:
                     max_hop_lev = hop_lev_list.max().item()
                 else:
-                    max_hop_lev = 0  # 适当的默认值【review】
+                    max_hop_lev = 0  # sensible default (review if needed)
 
                 # max_hop_lev = hop_lev_list.max().item()
 
@@ -104,13 +104,13 @@ class HierarchicalTransformer(nn.Module):
                 all_hop_tokens = torch.zeros((0, self.dim * 2)).to(device)
                 all_subg_tokens = torch.zeros((0, self.dim * 2)).to(device)
                 for lev in range(max_hop_lev + 1):
-                    # 获得 hop tokens
+                    # Hop-level tokens
                     hop_flag = hop_lev_list == lev
                     no_hops_in_level = hop_list[hop_flag].size(0)
                     if no_hops_in_level == 0:
                         continue
                     level_hop_tokens = torch.zeros((0, self.dim * 2)).to(device)
-                    # 为了节约显存，每次最多处理 MAX_HOP_ONCE 个hop
+                    # Cap hops per step to save GPU memory
                     for i in range(0, no_hops_in_level, self.max_hop_once):
                         nodes_in_hop = node_tokens[hop_list[hop_flag][i:i+self.max_hop_once]]
                         nodes_in_hop_flatten = torch.zeros((0, self.dim * 2)).to(device)
@@ -130,20 +130,20 @@ class HierarchicalTransformer(nn.Module):
                         hop_tokens = output_nodes_in_hop[:no_hops_once, :]
                         all_hop_tokens = torch.cat([all_hop_tokens, hop_tokens], dim=0)
                         level_hop_tokens = torch.cat([level_hop_tokens, hop_tokens], dim=0)
-                    # 获得 subg tokens
+                    # Subgraph tokens
                     hops_in_subg = torch.cat([self.subg_nodes, level_hop_tokens], dim=0)
                     subg_attn = torch.tensor([[i, 0] for i in range(hops_in_subg.size(0))], dtype=torch.long).t().contiguous().to(device)
                     output_subg_tokens = self.lev_tfs[modal_k](hops_in_subg, subg_attn)
                     subg_tokens = output_subg_tokens[0:1, :]
                     all_subg_tokens = torch.cat([all_subg_tokens, subg_tokens], dim=0)
                     
-                # 获得 graph tokens
+                # Graph-level token
                 subg_in_graph = torch.cat([self.graph_nodes, all_subg_tokens], dim=0)
                 graph_attn = torch.tensor([[i, 0] for i in range(subg_in_graph.size(0))], dtype=torch.long).t().contiguous().to(device)
                 output_graph_tokens = self.graph_tfs[modal_k](subg_in_graph, graph_attn) 
                 graph_tokens = output_graph_tokens[0:1, :]
                 
-                # 一个模态的tokens由多层次组成：hop、level、graph
+                # One modality: hop, level, and graph tokens
                 modal_tokens = torch.cat([all_hop_tokens, all_subg_tokens, graph_tokens], dim=0)
                 other_modal_tokens = torch.cat([other_modal_tokens, modal_tokens], dim=0)
                 

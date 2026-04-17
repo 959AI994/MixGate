@@ -60,15 +60,15 @@ class Model(nn.Module):
         # self.one.requires_grad = False
 
     def forward(self, G):
-        device = next(self.parameters()).device#获取模型第一个参数所在的设备 赋值给device
+        device = next(self.parameters()).device  # device of first parameter
         num_nodes = len(G.xag_gate)
-        num_layers_f = max(G.xag_forward_level).item() + 1 #向前传播多少层
+        num_layers_f = max(G.xag_forward_level).item() + 1  # number of forward levels
         num_layers_b = max(G.xag_backward_level).item() + 1
         
         # initialize the structure hidden state
         if self.enable_encode:
             hs = torch.zeros(num_nodes, self.dim_hidden)
-            hs = generate_hs_init(G, hs, self.dim_hidden, xag=True)#先获得pi的embedding
+            hs = generate_hs_init(G, hs, self.dim_hidden, xag=True)  # PI embeddings
         else:
             hs = torch.zeros(num_nodes, self.dim_hidden)
         
@@ -82,30 +82,30 @@ class Model(nn.Module):
         edge_index = G.xag_edge_index
 
         # print("[debug]:G.gate =", G.gate)
-        # # 这里也可以插入调试信息
-        # print("[debug]:G.gate的原始形状:", G.gate.shape)
+        # # Optional debug prints
+        # print("[debug]: G.gate shape:", G.gate.shape)
 
         node_state = torch.cat([hs, hf], dim=-1)
-        not_mask = G.xag_gate.squeeze(1) == 2  # NOT门的掩码
-        and_mask = G.xag_gate.squeeze(1) == 3  # AND门的掩码
-        or_mask = G.xag_gate.squeeze(1) == 4   # OR门的掩码
-        maj_mask = G.xag_gate.squeeze(1) == 1  # MAJ门的掩码
-        xor_mask = G.xag_gate.squeeze(1) == 5  # XOR门的掩码
+        not_mask = G.xag_gate.squeeze(1) == 2  # NOT gates
+        and_mask = G.xag_gate.squeeze(1) == 3  # AND gates
+        or_mask = G.xag_gate.squeeze(1) == 4   # OR gates
+        maj_mask = G.xag_gate.squeeze(1) == 1  # MAJ gates
+        xor_mask = G.xag_gate.squeeze(1) == 5  # XOR gates
         
-        # print("[debug]: and_mask的形状:", and_mask.shape)
-        # print("[debug]: and_mask的内容:", and_mask)
+        # print("[debug]: and_mask shape:", and_mask.shape)
+        # print("[debug]: and_mask values:", and_mask)
         # print("xor_mask =", xor_mask)
         
 
         for _ in range(self.num_rounds):
             for level in range(1, num_layers_f):
                 # forward layer
-                layer_mask = G.xag_forward_level == level #将目标层级不mask掉，G.forward_level是各节点的层级信息
+                layer_mask = G.xag_forward_level == level  # nodes at this level
                 # print("G.level =", G.forward_level)
                 # print("layer_mask =", layer_mask)
 
                 # AND Gate
-                l_and_node = G.xag_forward_index[layer_mask & and_mask]#将目标层级的and节点显示出来
+                l_and_node = G.xag_forward_index[layer_mask & and_mask]  # AND nodes at this level
                 # print("l_and_node =", l_and_node)
                 if l_and_node.size(0) > 0:
                     and_edge_index, and_edge_attr = subgraph(l_and_node, edge_index, dim=1)
@@ -141,7 +141,7 @@ class Model(nn.Module):
                     _, hf_not = self.update_not_func(not_msg.unsqueeze(0), hf_not.unsqueeze(0))
                     hf[l_not_node, :] = hf_not.squeeze(0)
                 
-                l_xor_node = G.xag_forward_index[layer_mask & xor_mask]#将目标层级的and节点显示出来
+                l_xor_node = G.xag_forward_index[layer_mask & xor_mask]  # XOR nodes at this level
                 # print("l_and_node =", l_and_node)
                 if l_xor_node.size(0) > 0:
                     xor_edge_index, xor_edge_attr = subgraph(l_xor_node, edge_index, dim=1)
@@ -167,7 +167,7 @@ class Model(nn.Module):
         node_embedding = node_state.squeeze(0)
         hs = node_embedding[:, :self.dim_hidden]
         hf = node_embedding[:, self.dim_hidden:]
-        # 输出 hs 和 hf 的内容
+        # Return hs and hf
         # print("[debug] xag_hs:", hs)
         # print("[debug] xag_hf:", hf)
 

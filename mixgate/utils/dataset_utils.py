@@ -36,32 +36,32 @@ class OrderedData(Data):
     #     if key == 'xmg_batch': 
     #         return 3
     #     # if key in {'aig_batch', 'xag_batch', 'xmg_batch'}:
-    #     #     return 1  # 按批次增量
+    #     #     return 1  # batch increment
         
     #     else:
     #         return 0
 
     def __inc__(self, key, value, *args, **kwargs):
         if 'index' in key or 'face' in key:
-            # 返回当前图中节点数，按模态区分
+            # Node count for this modality in the current graph
             if 'aig' in key:
-                return len(self.aig_x)  # AIG 模态的节点数
+                return len(self.aig_x)  # AIG node count
             elif 'xag' in key:
-                return len(self.xag_x)  # XAG 模态的节点数
+                return len(self.xag_x)  # XAG node count
             elif 'xmg' in key:
-                return len(self.xmg_x)  # XMG 模态的节点数
+                return len(self.xmg_x)  # XMG node count
             elif 'mig' in key:
-                return len(self.mig_x)  # XMG 模态的节点数
+                return len(self.mig_x)  # MIG node count
             else:
-                return self.num_nodes  # 默认节点数（MIG）
-        # 如果是批次相关的字段
+                return self.num_nodes  # fallback
+        # Batch-related keys
 
         if 'batch' in key:
             return 1
 
         if 'equ' in key:
             if 'aig_x' in key or 'aig_m':
-                return len(self.x)# AIG 模态的节点数
+                return len(self.x)  # AIG node count
         elif 'xag_a' in key:
             return len(self.xag_x)
         elif 'xmg_a' in key:
@@ -74,7 +74,7 @@ class OrderedData(Data):
         #     return 1
         # elif key == 'xmg_batch':
         #     return 1
-        return 0  # 默认返回 0
+        return 0  # default
     
     def __cat_dim__(self, key, value, *args, **kwargs):
         if 'forward_index' in key or 'backward_index' in key:

@@ -26,16 +26,16 @@ class Model(nn.Module):
                 ):
         super(Model, self).__init__()
         
-        # 配置
+        # Config
         self.num_rounds = num_rounds
         self.enable_encode = enable_encode
         self.enable_reverse = enable_reverse
 
-        # 维度
+        # Dimensions
         self.dim_hidden = dim_hidden
         self.dim_mlp = 32
 
-        # 网络结构
+        # Network
         self.aggr_and_strc = TFMlpAggr(self.dim_hidden*1, self.dim_hidden)
         self.aggr_not_strc = TFMlpAggr(self.dim_hidden*1, self.dim_hidden)
         self.aggr_or_strc = TFMlpAggr(self.dim_hidden*1, self.dim_hidden)
@@ -70,16 +70,16 @@ class Model(nn.Module):
         # self.one.requires_grad = False
 
     def forward(self, G):
-        device = next(self.parameters()).device  # 获取模型第一个参数所在的设备 赋值给device
+        device = next(self.parameters()).device  # device of first parameter
         # num_nodes = len(G.mig_gate)
         num_nodes = len(G.mig_gate)
-        num_layers_f = max(G.mig_forward_level).item() + 1  # 向前传播多少层
+        num_layers_f = max(G.mig_forward_level).item() + 1  # number of forward levels
         num_layers_b = max(G.mig_backward_level).item() + 1
         
         # initialize the structure hidden state
         if self.enable_encode:
             hs = torch.zeros(num_nodes, self.dim_hidden)
-            hs = generate_hs_init(G, hs, self.dim_hidden, mig=True)  # 先获得pi的embedding
+            hs = generate_hs_init(G, hs, self.dim_hidden, mig=True)  # PI embeddings
         else:
             hs = torch.zeros(num_nodes, self.dim_hidden)
         
@@ -90,21 +90,21 @@ class Model(nn.Module):
         
         edge_index = G.mig_edge_index
 
-        # print("[debug] G attributes:", dir(G))  # 打印 G 的所有属性
+        # print("[debug] G attributes:", dir(G))  # dump all attributes of G
 
         node_state = torch.cat([hs, hf], dim=-1)
-        not_mask = G.mig_gate.squeeze(1) == 2  # NOT门的掩码
-        and_mask = G.mig_gate.squeeze(1) == 3  # AND门的掩码
-        or_mask = G.mig_gate.squeeze(1) == 4   # OR门的掩码
-        maj_mask = G.mig_gate.squeeze(1) == 1  # MAJ门的掩码
-        xor_mask = G.mig_gate.squeeze(1) == 5  # XOR门的掩码
+        not_mask = G.mig_gate.squeeze(1) == 2  # NOT gates
+        and_mask = G.mig_gate.squeeze(1) == 3  # AND gates
+        or_mask = G.mig_gate.squeeze(1) == 4   # OR gates
+        maj_mask = G.mig_gate.squeeze(1) == 1  # MAJ gates
+        xor_mask = G.mig_gate.squeeze(1) == 5  # XOR gates
 
-        # pi_mask = G.gate.squeeze(1) == 5   # PI门的掩码
+        # pi_mask = G.gate.squeeze(1) == 5   # PI gates
 
         for _ in range(self.num_rounds):
             for level in range(1, num_layers_f):
-                # 正向传播的层
-                layer_mask = G.mig_forward_level == level  # 将目标层级不mask掉，G.forward_level是各节点的层级信息
+                # Forward level
+                layer_mask = G.mig_forward_level == level  # nodes at this level
 
                 # NOT Gate
                 l_not_node = G.mig_forward_index[layer_mask & not_mask]
@@ -166,7 +166,7 @@ class Model(nn.Module):
                     _, hf_maj = self.update_maj_func(maj_msg.unsqueeze(0), hf_maj.unsqueeze(0))
                     hf[l_maj_node, :] = hf_maj.squeeze(0)
 
-                # 更新节点状态
+                # Update node state
                 node_state = torch.cat([hs, hf], dim=-1)
 
         node_embedding = node_state.squeeze(0)

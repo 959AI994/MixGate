@@ -67,27 +67,27 @@ class Model(nn.Module):
         
         edge_index = G.edge_index
 
-        # 调试信息：打印 G.gate 和 G.aig_forward_index 的形状
+        # Debug: shapes of G.gate and G.aig_forward_index
         # print("[debug]: G.gate shape =", G.gate.shape)
         # print("[debug]: G.aig_forward_index shape =", G.aig_forward_index.shape)
         # print("[debug]: G.aig_forward_level shape =", G.aig_forward_level.shape)
 
         node_state = torch.cat([hs, hf], dim=-1)
-        not_mask = G.gate.squeeze(1) == 2 # NOT门的掩码
-        and_mask = G.gate.squeeze(1) == 3  # AND门的掩码
-        # or_mask = G.gate.squeeze(1) == 4   # OR门的掩码
-        # maj_mask = G.gate.squeeze(1) == 1  # MAJ门的掩码
-        # xor_mask = G.gate.squeeze(1) == 5  # XOR门的掩码
+        not_mask = G.gate.squeeze(1) == 2  # NOT gates
+        and_mask = G.gate.squeeze(1) == 3  # AND gates
+        # or_mask = G.gate.squeeze(1) == 4   # OR gates
+        # maj_mask = G.gate.squeeze(1) == 1  # MAJ gates
+        # xor_mask = G.gate.squeeze(1) == 5  # XOR gates
 
-        # print("[debug]: and_mask的形状:", and_mask.shape)
-        # print("[debug]: and_mask的内容:", and_mask)
+        # print("[debug]: and_mask shape:", and_mask.shape)
+        # print("[debug]: and_mask values:", and_mask)
 
         for _ in range(self.num_rounds):
             for level in range(1, num_layers_f):
                 # forward layer
                 layer_mask = G.forward_level == level
 
-                # 调试信息：检查 layer_mask 和 and_mask 的形状
+                # Debug: shapes of layer_mask and and_mask
                 # print(f"[debug] layer_mask shape: {layer_mask.shape}, and_mask shape: {and_mask.shape}")
 
                 # # AND Gate
@@ -100,7 +100,7 @@ class Model(nn.Module):
 
                 l_and_node = G.forward_index[layer_mask & and_mask]
 
-                # 调试信息：打印 l_and_node 的形状
+                # Debug: shape of l_and_node
                 # print(f"[debug] l_and_node shape: {l_and_node.shape}")
 
                 if l_and_node.size(0) > 0:
@@ -110,7 +110,7 @@ class Model(nn.Module):
                     # print("and_edge_attr =", and_edge_attr)
                     # print("hs =", hs.shape)
                     # # debug
-                    # 检查节点索引
+                    # Check node indices
                     if l_and_node.max() >= hs.shape[0] or l_and_node.min() < 0:
                         raise ValueError(f"Invalid l_and_node indices: {l_and_node}") 
                     # print(f"hs.shape: {hs.shape}")
@@ -159,7 +159,7 @@ class Model(nn.Module):
         hs = node_embedding[:, :self.dim_hidden]
         hf = node_embedding[:, self.dim_hidden:]
 
-        # 输出 hs 和 hf 的内容
+        # Return hs and hf
         # print("[debug] aig_hs:", hs)
         # print("[debug] aig_hf:", hf)
           # debug

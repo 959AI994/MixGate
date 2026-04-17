@@ -71,7 +71,7 @@ class TopTrainer():
         self.ce_loss = nn.CrossEntropyLoss(reduction='mean').to(self.device)
         self.optimizer = torch.optim.Adam(model.parameters(), lr=self.lr)
         
-        # 初始化多视图对齐损失
+        # Multi-view alignment loss
         self.alignment_loss = MultiViewAlignmentLoss(loss_weight=args.alignment_loss_weight if hasattr(args, 'alignment_loss_weight') else 1.0)
         
         # Model
@@ -84,9 +84,9 @@ class TopTrainer():
         
     def set_training_args(self, loss_weight=[], lr=-1, lr_step=-1, device='null'):
         if len(loss_weight) > 0:
-            # 确保loss_weight有4个元素：[prob_weight, mcm_weight, func_weight, align_weight]
+            # loss_weight must have 4 entries: [prob, mcm, func, align]
             if len(loss_weight) < 4:
-                # 如果少于4个元素，用0补齐
+                # Pad with zeros if shorter
                 loss_weight = loss_weight + [0.0] * (4 - len(loss_weight))
             if loss_weight != self.loss_weight:
                 print('[INFO] Update loss weight from {} to {}'.format(self.loss_weight, loss_weight))
@@ -137,23 +137,23 @@ class TopTrainer():
     def run_batch(self, batch):
         mcm_pm_tokens, mask_indices, pm_tokens, pm_prob, aig_prob, mig_prob, xmg_prob, xag_prob, aig_hf, mig_hf, xmg_hf, xag_hf = self.model(batch)
         
-        # 构建hf字典，使用模型返回的hf
+        # hf dict from model outputs
         hf_dict = {
-            'aig': aig_hf,  # AIG的功能隐藏状态
-            'mig': mig_hf,  # MIG的功能隐藏状态
-            'xmg': xmg_hf,  # XMG的功能隐藏状态
-            'xag': xag_hf   # XAG的功能隐藏状态
+            'aig': aig_hf,  # AIG functional hidden
+            'mig': mig_hf,  # MIG functional hidden
+            'xmg': xmg_hf,  # XMG functional hidden
+            'xag': xag_hf   # XAG functional hidden
         }
         
-        # 计算多视图对齐损失（只对齐hf）
+        # Alignment loss on hf only
         if hasattr(self.args, 'disable_alignment') and self.args.disable_alignment:
-            # 消融实验：跳过对齐损失计算
+            # Ablation: skip alignment
             alignment_loss = torch.tensor(0.0, device=self.device)
             alignment_loss_dict = {}
         else:
             alignment_loss, alignment_loss_dict = self.alignment_loss(batch, hf_dict)
         
-        # 原有的损失计算
+        # Standard losses (prob / MCM / func)
         prob_aigloss = self.reg_loss(aig_prob, batch['prob'].unsqueeze(1))
         prob_migloss = self.reg_loss(mig_prob, batch['mig_prob'].unsqueeze(1))
         prob_xmgloss = self.reg_loss(xmg_prob, batch['xmg_prob'].unsqueeze(1))
@@ -163,11 +163,11 @@ class TopTrainer():
         prob_loss = self.reg_loss(pm_prob, batch['prob'].unsqueeze(1))
         
         # Task 2: Mask PM Circuit Modeling  
-        # 只有当mask_indices不为None时才计算MCM损失
+        # MCM loss only when mask_indices is provided
         if mask_indices is not None:
             mcm_loss = self.reg_loss(mcm_pm_tokens[mask_indices], pm_tokens[mask_indices])
         else:
-            # 当mask_ratio为0时，MCM损失设为0
+            # No masking -> zero MCM loss
             mcm_loss = torch.tensor(0.0, device=self.device)
         
         # Task 3: Functional Similarity
@@ -178,7 +178,7 @@ class TopTrainer():
         tt_dis_z = zero_normalization(batch['tt_dis'])
         func_loss = self.reg_loss(emb_dis_z, tt_dis_z)
 
-        # 返回损失和子模型概率，包含对齐损失
+        # Loss dict plus sub-model probs and alignment terms
         loss_status = {
             'prob_loss': prob_loss,
             'mcm_loss': mcm_loss,
@@ -188,7 +188,7 @@ class TopTrainer():
             'xag_prob': prob_xagloss,
             'func_loss': func_loss,
             'alignment_loss': alignment_loss,
-            **alignment_loss_dict  # 展开对齐损失详情
+            **alignment_loss_dict  # per-pair alignment breakdown
         }
 
         return loss_status
@@ -261,21 +261,21 @@ class TopTrainer():
                 for iter_id, batch in enumerate(dataset):
                     batch = batch.to(self.device)
 
-                    # 重置CUDA内存统计
+                    # Reset CUDA memory stats
                     torch.cuda.reset_peak_memory_stats(self.device)
 
                     time_stamp = time.time()
                     # Get loss
                     loss_status = self.run_batch(batch)
 
-                    # 计算总损失，包含四个损失：prob_loss, mcm_loss, func_loss, alignment_loss
+                    # Total loss: prob + mcm + func + alignment
                     # loss_weight = [prob_weight, mcm_weight, func_weight, align_weight]
                     loss = loss_status['prob_loss'] * self.loss_weight[0] + \
                            loss_status['mcm_loss'] * self.loss_weight[1] + \
                            loss_status['func_loss'] * self.loss_weight[2] + \
                            loss_status['alignment_loss'] * self.loss_weight[3]
                     
-                    # 归一化损失权重
+                    # Normalize loss weights to sum to 1
                     loss /= sum(self.loss_weight)
                     loss = loss.mean()
                     if phase == 'train':
@@ -285,13 +285,13 @@ class TopTrainer():
                     # Print and save log
                     batch_time.update(time.time() - time_stamp)
 
-                    # 获取内存使用（仅CUDA）
+                    # CUDA memory (allocated + reserved)
                     mem_usage = torch.cuda.max_memory_allocated(self.device)
                     mem_mb = mem_usage / (1024 ** 2)
 
-                    # 计算模型参数量
+                    # Parameter count (once)
                     self.total_params = sum(p.numel() for p in self.model.parameters())
-                    self.total_params_m = self.total_params / 1e6  # 转换为百万单位
+                    self.total_params_m = self.total_params / 1e6  # millions of params
 
                     prob_loss_stats.update(loss_status['prob_loss'].item())
                     mcm_loss_stats.update(loss_status['mcm_loss'].item())
@@ -300,7 +300,7 @@ class TopTrainer():
                     prob_loss_mig.update(loss_status['mig_prob'].item())
                     prob_loss_xmg.update(loss_status['xmg_prob'].item())
                     prob_loss_xag.update(loss_status['xag_prob'].item())
-                    # 确保alignment_loss是tensor
+                    # Keep alignment_loss as tensor for autograd
                     if isinstance(loss_status['alignment_loss'], torch.Tensor):
                         alignment_loss_stats.update(loss_status['alignment_loss'].item())
                     else:

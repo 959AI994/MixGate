@@ -32,7 +32,7 @@ class AverageMeter(object):
 def zero_normalization(x):
     mean_x = torch.mean(x)
     std_x = torch.std(x)
-    # 避免除零问题
+    # Avoid division by zero
     if std_x == 0:
         return x - mean_x
     z_x = (x - mean_x) / std_x

@@ -39,9 +39,9 @@ if __name__ == '__main__':
     print('[INFO] Stage 1 Training ...')
     trainer.train(num_epochs, train_dataset, val_dataset)
 
-    # 保存第一阶段训练结束后的权重
+    # Save checkpoint after stage 1
     trainer.save(os.path.join(trainer.log_dir, 'stage1_model.pth'))
-    # 加载第一阶段的模型权重
+    # Load stage-1 checkpoint
     print('[INFO] Loading Stage 1 Checkpoint...')
     trainer.load(os.path.join(trainer.log_dir, 'stage1_model.pth'))
 

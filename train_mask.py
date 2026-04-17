@@ -41,36 +41,36 @@ if __name__ == '__main__':
 
     trainer = mixgate.top_trainer.TopTrainer(args, model, distributed=True)
     
-    # 第一阶段：60个epoch，训练prob（不使用对齐损失）
+    # Stage 1: 60 epochs, prob only (no alignment loss)
     print('[INFO] Stage 1 Training: Prob training only (60 epochs) ...')
     trainer.set_training_args(lr=1e-4, lr_step=50, loss_weight=[1.0, 0.1, 0.0, 0.1])
     trainer.train(60, train_dataset, val_dataset)
     
-    # 保存第一阶段训练结束后的权重
+    # Save checkpoint after stage 1
     trainer.save(os.path.join(trainer.log_dir, 'stage1_prob_only_model.pth'))
     
-    # 加载第一阶段的模型权重
+    # Load stage-1 checkpoint
     print('[INFO] Loading Stage 1 Checkpoint...')
     trainer.load(os.path.join(trainer.log_dir, 'stage1_prob_only_model.pth'))
 
-    # 第二阶段：60个epoch，训练prob和func（不使用对齐损失）
+    # Stage 2: 60 epochs, prob + func (no alignment loss)
     print('[INFO] Stage 2 Training: Prob and Func training (60 epochs) ...')
     trainer.set_training_args(lr=1e-3, lr_step=50, loss_weight=[1.0, 0.1, 1.0, 0.1])
     trainer.train(60, train_dataset, val_dataset)
     
-    # 保存第二阶段训练结束后的权重
+    # Save checkpoint after stage 2
     trainer.save(os.path.join(trainer.log_dir, 'stage2_prob_func_model.pth'))
     
-    # 加载第二阶段的模型权重
+    # Load stage-2 checkpoint
     print('[INFO] Loading Stage 2 Checkpoint...')
     trainer.load(os.path.join(trainer.log_dir, 'stage2_prob_func_model.pth'))
 
-    # 第三阶段：最后60个epoch，训练prob、func和mask（不使用对齐损失）
+    # Stage 3: final 60 epochs, prob + func + mask (no alignment loss)
     print('[INFO] Stage 3 Training: Prob, Func, and Mask training (60 epochs) ...')
     trainer.set_training_args(lr=1e-4, lr_step=50, loss_weight=[1.0, 0.0, 1.0, 0.0])
     trainer.train(60, train_dataset, val_dataset)
     
-    # 保存最终模型
+    # Save final model
     trainer.save(os.path.join(trainer.log_dir, 'stage3_final_model.pth'))
     
     print('[INFO] Training completed!')
