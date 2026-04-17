@@ -3,8 +3,6 @@
 ## Abstract
 Multiview learning on Boolean circuits holds immense promise, as different graph-based representations offer complementary structural and semantic information. However, the vast structural heterogeneity between views such as an And-Inverter Graph (AIG) versus an XOR-Majority Graph (XMG)-poses a critical barrier to effective fusion, especially for self-supervised techniques like masked modeling. Naively applying such methods fails, as the cross-view context is perceived as noise. Our key insight is that functional alignment is a necessary precondition to unlock the power of multiview self-supervision. We introduce MixGate, a framework built on a principled training curriculum that first teaches the model a shared, function-aware representation space via an Equivalence Alignment Loss. Only then do we introduce a multiview masked modeling objective, which can now leverage the aligned views as a rich, complementary signal. Extensive experiments, including a crucial ablation study, demonstrate that our alignment-first strategy transforms masked modeling from an ineffective technique into a powerful performance driver.
 
----
-
 ## 🗺️ Technical Roadmap
 
 ### 1. MixGate Overview
@@ -16,8 +14,6 @@ Before masking, MixGate establishes connections between circuits of different mo
 
 ### 3. Masked Circuit Modeling (MCM)
 Once the latent spaces are aligned, MixGate utilizes an MCM objective where a masked cone in a target view is reconstructed using complementary cross-view context.
-
----
 
 ## 🚀 Getting Started
 
