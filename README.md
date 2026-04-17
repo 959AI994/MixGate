@@ -17,19 +17,6 @@ Before masking, MixGate establishes connections between circuits of different mo
 ### 3. Masked Circuit Modeling (MCM)
 Once the latent spaces are aligned, MixGate utilizes an MCM objective where a masked cone in a target view is reconstructed using complementary cross-view context.
 
-<table>
-  <tr>
-    <td align="center" width="50%">
-      <img src="./figure/Alignment.png" alt="Equivalence Alignment" width="260" height="260" style="object-fit: contain;"/><br/>
-      <sub><b>Equivalence Alignment</b></sub>
-    </td>
-    <td align="center" width="50%">
-      <img src="./figure/mcm.png" alt="Masked Circuit Modeling" width="260" height="260" style="object-fit: contain;"/><br/>
-      <sub><b>Masked Circuit Modeling (MCM)</b></sub>
-    </td>
-  </tr>
-</table>
-
 ---
 
 ## 🚀 Getting Started
